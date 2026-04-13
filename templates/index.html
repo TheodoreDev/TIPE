@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TIPE — Simulations Scientifiques</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #0d1117;
+            color: #e6edf3;
+            min-height: 100vh;
+        }
+        header {
+            background: #161b22;
+            border-bottom: 1px solid #30363d;
+            padding: 16px 32px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        header h1 { font-size: 1.4rem; font-weight: 700; color: #58a6ff; }
+        header p { font-size: 0.85rem; color: #8b949e; }
+
+        .tabs {
+            display: flex;
+            gap: 0;
+            border-bottom: 1px solid #30363d;
+            background: #161b22;
+            padding: 0 32px;
+        }
+        .tab-btn {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: #8b949e;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .tab-btn:hover { color: #e6edf3; }
+        .tab-btn.active { color: #58a6ff; border-bottom-color: #58a6ff; }
+
+        .content { padding: 32px; max-width: 1200px; margin: 0 auto; }
+
+        .tab-pane { display: none; }
+        .tab-pane.active { display: block; }
+
+        .controls {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+        .controls h2 { font-size: 1.1rem; margin-bottom: 16px; color: #58a6ff; }
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .form-group { display: flex; flex-direction: column; gap: 6px; }
+        label { font-size: 0.85rem; color: #8b949e; }
+        input[type=range] { accent-color: #58a6ff; }
+        .value-display {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #e6edf3;
+            background: #0d1117;
+            padding: 2px 8px;
+            border-radius: 4px;
+            border: 1px solid #30363d;
+            text-align: center;
+        }
+
+        .run-btn {
+            background: #238636;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 24px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .run-btn:hover { background: #2ea043; }
+        .run-btn:disabled { background: #333; color: #666; cursor: not-allowed; }
+
+        .result-area { margin-top: 24px; }
+        .result-img {
+            width: 100%;
+            border-radius: 8px;
+            border: 1px solid #30363d;
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 12px;
+            margin-top: 20px;
+        }
+        .card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+        .card .val { font-size: 1.4rem; font-weight: 700; color: #58a6ff; }
+        .card .lbl { font-size: 0.75rem; color: #8b949e; margin-top: 4px; }
+
+        .species-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 0.875rem;
+        }
+        .species-table th {
+            background: #161b22;
+            border: 1px solid #30363d;
+            padding: 10px 14px;
+            text-align: left;
+            color: #8b949e;
+            font-weight: 600;
+        }
+        .species-table td {
+            border: 1px solid #21262d;
+            padding: 10px 14px;
+            background: #0d1117;
+        }
+
+        .spinner {
+            display: none;
+            width: 32px;
+            height: 32px;
+            border: 3px solid #30363d;
+            border-top-color: #58a6ff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 40px auto;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .description {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 24px;
+            font-size: 0.9rem;
+            color: #8b949e;
+            line-height: 1.6;
+        }
+        .description strong { color: #e6edf3; }
+
+        .about {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 28px;
+        }
+        .about h2 { color: #58a6ff; margin-bottom: 16px; }
+        .about p { color: #8b949e; line-height: 1.7; margin-bottom: 12px; }
+        .about ul { color: #8b949e; padding-left: 20px; line-height: 1.8; }
+        .about li strong { color: #e6edf3; }
+    </style>
+</head>
+<body>
+    <header>
+        <div>
+            <h1>TIPE — Simulations Scientifiques</h1>
+            <p>Modélisation forestière &amp; génération planétaire procédurale</p>
+        </div>
+    </header>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('forest', this)">🌲 Forêt</button>
+        <button class="tab-btn" onclick="switchTab('planet', this)">🌍 Planète</button>
+        <button class="tab-btn" onclick="switchTab('about', this)">ℹ️ À propos</button>
+    </div>
+
+    <div class="content">
+
+        <!-- FOREST TAB -->
+        <div id="tab-forest" class="tab-pane active">
+            <div class="description">
+                <strong>Simulation de croissance forestière</strong> — Modèle mathématique (schéma d'Euler explicite) simulant l'évolution de trois espèces d'arbres (Chêne, Pin sylvestre, Hêtre) en compétition sous l'effet de la température et du CO₂.
+            </div>
+            <div class="controls">
+                <h2>Paramètres de la simulation</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Température (°C)</label>
+                        <input type="range" id="temperature" min="-5" max="30" step="0.5" value="15" oninput="updateDisplay('temperature', this.value + ' °C')">
+                        <div class="value-display" id="display-temperature">15 °C</div>
+                    </div>
+                    <div class="form-group">
+                        <label>CO₂ (%vol)</label>
+                        <input type="range" id="co2" min="0.02" max="0.10" step="0.002" value="0.04" oninput="updateDisplay('co2', (parseFloat(this.value)*100).toFixed(1) + ' %')">
+                        <div class="value-display" id="display-co2">4.0 %</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Durée (années)</label>
+                        <input type="range" id="duration" min="10" max="500" step="10" value="100" oninput="updateDisplay('duration', this.value + ' ans')">
+                        <div class="value-display" id="display-duration">100 ans</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Arbres initiaux</label>
+                        <input type="range" id="n_trees" min="3" max="300" step="3" value="10" oninput="updateDisplay('n_trees', this.value)">
+                        <div class="value-display" id="display-n_trees">10</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Surface initiale (ha)</label>
+                        <input type="range" id="surface" min="0.5" max="10" step="0.5" value="1" oninput="updateDisplay('surface', this.value + ' ha')">
+                        <div class="value-display" id="display-surface">1 ha</div>
+                    </div>
+                </div>
+                <button class="run-btn" id="forest-btn" onclick="runForest()">▶ Lancer la simulation</button>
+            </div>
+
+            <div class="result-area" id="forest-result">
+                <div class="spinner" id="forest-spinner"></div>
+                <img class="result-img" id="forest-img" style="display:none" alt="Simulation results">
+                <div class="summary-cards" id="forest-summary"></div>
+                <table class="species-table" id="forest-table" style="display:none">
+                    <thead>
+                        <tr>
+                            <th>Espèce</th>
+                            <th>Arbres (N)</th>
+                            <th>Biomasse (t)</th>
+                            <th>f(T)</th>
+                            <th>f(CO₂)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="forest-table-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- PLANET TAB -->
+        <div id="tab-planet" class="tab-pane">
+            <div class="description">
+                <strong>Génération planétaire procédurale</strong> — Génère une planète aléatoire en 2D (projection Mercator) via bruit de Perlin / fBm (Fractional Brownian Motion) pour créer des continents, déserts, zones polaires et biomes réalistes.
+            </div>
+            <div class="controls">
+                <h2>Paramètres de génération</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Seed (graine aléatoire)</label>
+                        <input type="range" id="seed" min="0" max="99999" step="1" value="42" oninput="updateDisplay('seed', this.value)">
+                        <div class="value-display" id="display-seed">42</div>
+                    </div>
+                </div>
+                <button class="run-btn" id="planet-btn" onclick="runPlanet()">▶ Générer la planète</button>
+                &nbsp;
+                <button class="run-btn" style="background:#1f6feb" onclick="randomSeed()">🎲 Seed aléatoire</button>
+            </div>
+
+            <div class="result-area" id="planet-result">
+                <div class="spinner" id="planet-spinner"></div>
+                <img class="result-img" id="planet-img" style="display:none" alt="Generated planet">
+            </div>
+        </div>
+
+        <!-- ABOUT TAB -->
+        <div id="tab-about" class="tab-pane">
+            <div class="about">
+                <h2>À propos du projet TIPE</h2>
+                <p>
+                    Ce projet regroupe plusieurs simulations scientifiques réalisées dans le cadre d'un <strong>TIPE</strong> (Travail d'Initiative Personnelle Encadré), en classe préparatoire.
+                </p>
+                <p>Les modules disponibles sont :</p>
+                <ul>
+                    <li>
+                        <strong>Simulation forestière (v1)</strong> — Modèle écologique basé sur des équations différentielles ordinaires (ODE) intégrées avec le schéma d'Euler explicite.
+                        Trois espèces d'arbres (Chêne pédonculé, Pin sylvestre, Hêtre commun) sont modélisées en compétition interspécifique, en fonction de la température ambiante et de la concentration en CO₂.
+                    </li>
+                    <li style="margin-top: 8px">
+                        <strong>Visualisation 3D planétaire (v2)</strong> — Génération procédurale d'une planète avec bruit de Perlin / fBm en 3D, rendu de continents, déserts, zones polaires.
+                        Inclut également un simulateur d'orbites de satellites (loi de Kepler simplifiée). La visualisation 3D interactive utilise Pygame ; ici une vue 2D (projection Mercator) est présentée.
+                    </li>
+                    <li style="margin-top: 8px">
+                        <strong>Réseau de neurones (test)</strong> — Implémentation from scratch d'un MLP (perceptron multi-couches) avec forward/backward propagation pour la classification de données circulaires.
+                    </li>
+                </ul>
+                <p style="margin-top: 16px">
+                    Technologies utilisées : <strong>Python 3.12</strong>, NumPy, SciPy, Matplotlib, Pygame, scikit-learn.
+                </p>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        function switchTab(name, btn) {
+            document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('tab-' + name).classList.add('active');
+            btn.classList.add('active');
+        }
+
+        function updateDisplay(id, val) {
+            document.getElementById('display-' + id).textContent = val;
+        }
+
+        async function runForest() {
+            const btn = document.getElementById('forest-btn');
+            btn.disabled = true;
+            document.getElementById('forest-spinner').style.display = 'block';
+            document.getElementById('forest-img').style.display = 'none';
+            document.getElementById('forest-summary').innerHTML = '';
+            document.getElementById('forest-table').style.display = 'none';
+
+            const payload = {
+                temperature: parseFloat(document.getElementById('temperature').value),
+                co2: parseFloat(document.getElementById('co2').value),
+                duration: parseInt(document.getElementById('duration').value),
+                n_trees: parseInt(document.getElementById('n_trees').value),
+                surface: parseFloat(document.getElementById('surface').value),
+            };
+
+            try {
+                const res = await fetch('/api/forest', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+
+                const img = document.getElementById('forest-img');
+                img.src = 'data:image/png;base64,' + data.image;
+                img.style.display = 'block';
+
+                const s = data.summary;
+                document.getElementById('forest-summary').innerHTML = `
+                    <div class="card"><div class="val">${s.surface} ha</div><div class="lbl">Surface totale</div></div>
+                    <div class="card"><div class="val">${s.biomasse} t</div><div class="lbl">Biomasse totale</div></div>
+                    <div class="card"><div class="val">${s.n_total}</div><div class="lbl">Nombre d'arbres</div></div>
+                    <div class="card"><div class="val">${s.densite}</div><div class="lbl">Densité (arb./ha)</div></div>
+                    <div class="card"><div class="val">${s.croissance}</div><div class="lbl">Croissance moy.</div></div>
+                `;
+
+                const tbody = document.getElementById('forest-table-body');
+                tbody.innerHTML = s.species.map(sp => `
+                    <tr>
+                        <td>${sp.nom}</td>
+                        <td>${sp.N}</td>
+                        <td>${sp.B}</td>
+                        <td>${sp.fT}</td>
+                        <td>${sp.fCO2}</td>
+                    </tr>
+                `).join('');
+                document.getElementById('forest-table').style.display = 'table';
+            } catch(e) {
+                alert('Erreur: ' + e.message);
+            } finally {
+                document.getElementById('forest-spinner').style.display = 'none';
+                btn.disabled = false;
+            }
+        }
+
+        async function runPlanet() {
+            const btn = document.getElementById('planet-btn');
+            btn.disabled = true;
+            document.getElementById('planet-spinner').style.display = 'block';
+            document.getElementById('planet-img').style.display = 'none';
+
+            const payload = {
+                seed: parseInt(document.getElementById('seed').value),
+            };
+
+            try {
+                const res = await fetch('/api/planet', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+
+                const img = document.getElementById('planet-img');
+                img.src = 'data:image/png;base64,' + data.image;
+                img.style.display = 'block';
+            } catch(e) {
+                alert('Erreur: ' + e.message);
+            } finally {
+                document.getElementById('planet-spinner').style.display = 'none';
+                btn.disabled = false;
+            }
+        }
+
+        function randomSeed() {
+            const s = Math.floor(Math.random() * 100000);
+            const slider = document.getElementById('seed');
+            slider.value = s;
+            updateDisplay('seed', s);
+        }
+    </script>
+</body>
+</html>
