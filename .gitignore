@@ -1,1 +1,9 @@
 .venv
+.agents
+__pycache__
+app.py
+main.py
+replit.md
+./templates
+./config
+.replit
