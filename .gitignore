@@ -4,7 +4,7 @@ __pycache__
 app.py
 main.py
 replit.md
-./templates
-./config
+templates
+config
 .replit
-./.code/v2/map-result/map.png
+.code/v2/map-result/map.png
