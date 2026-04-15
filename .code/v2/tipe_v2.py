@@ -281,6 +281,7 @@ class TextureVisualizer():
                   labelcolor='white', fontsize=8, framealpha=0.8)
 
         plt.tight_layout()
+        plt.savefig("./map-result/map.png", dpi=150, bbox_inches="tight")
         #plt.pause(0.001)
         plt.show()
 
@@ -408,12 +409,12 @@ class Main():
         base_radius = RADIUS
 
         satellites = [
-            Satellite(0, 0, 0.6),
+            Satellite(20, 0, 0.6),
         ]
         ACTIVATE_ROTATION = True
         t = 0.0
 
-        SHOW_MAP = False  # False to desactivate visualization
+        SHOW_MAP = True  # False to desactivate visualization
         if SHOW_MAP:
             self.tv.showTexture2D(texture, lats, lons, seed=SEED)
 
