@@ -6,6 +6,8 @@ import time
 import matplotlib.pyplot as plt
 #plt.ion()       # passage en mode interractif de matplotlib # NE MARCHE PAS
 import matplotlib.patches as mpatches
+import json
+from math import *
 from pygame.examples.go_over_there import screen
 
 #-------------------------------
@@ -14,6 +16,7 @@ from pygame.examples.go_over_there import screen
 nres = 1
 WIDTH, HEIGHT = 800, 800
 FPS = 60
+TIME_SCALE = 100
 RADIUS = 280
 FOCAL = 900
 LAT_STEP = int(120 * nres)
@@ -191,15 +194,20 @@ class Planet():
         return px, py, r[:, 2]
 
 class Satellite():
-    def __init__(self, inclinaison, raan, altitude, phase=0.0):
+    def __init__(self, inclinaison, raan, altitude_km, phase=0.0):
         self.inclinaison = np.radians(inclinaison)
         self.raan = np.radians(raan)
-        self.r = 1.0 + altitude
         self.phase = phase
-        self.omega = 0.3 / (self.r ** 1.5)      # Kepler law simplification
+
+        #self.omega = 0.3 / (self.r ** 1.5)      # Kepler law simplification
+        GM = 3.986e14  # m³/s²
+        R_EARTH = 6.371e6  # m
+        a = R_EARTH + altitude_km * 1000
+        self.omega_real = np.sqrt(GM / a ** 3)  # rad/s
+        self.r = 1.0 + altitude_km / 6371.0     # for vizualisation
 
     def position(self, t):
-        angle = self.omega * t + self.phase
+        angle = self.omega_real * t + self.phase
 
         # Position on the orbital plan
         x_orb = self.r * np.cos(angle)
@@ -350,6 +358,43 @@ class Main():
             screen.blit(surf, (12, 12+i*20))
 
 # -------------------------------
+# LOAD/CREATE THE SATELLITE CONSTELLATION
+# -------------------------------
+
+    def loadConstellation(self, filepath, altitude=1200):
+        with open(filepath) as f:
+            data = json.load(f)
+        return [
+            Satellite(
+                inclinaison=sat["inclination_deg"],
+                raan=sat["raan_deg"],
+                altitude_km=altitude,
+                phase=sat["phase_deg"],
+            )
+            for sat in data
+        ]
+
+    def generateOneWebWalker(self, altitude=1200):
+        N_PLANES = 12
+        N_PER_PLANE = 49  # 12 * 49 = 588, + some more in reserve to arrive to 648
+        INCLINATION = 87.9
+
+        satellites = []
+        for p in range(N_PLANES):
+            raan = p * (180.0 / N_PLANES)  # Spaced plan of de 180°/12 = 15°
+            for s in range(N_PER_PLANE):
+                # Shift between two plans (F parametre of Walker)
+                walker_offset = (p * 360.0 / N_PER_PLANE) / N_PLANES
+                phase = s * (360.0 / N_PER_PLANE) + walker_offset + p*25
+                satellites.append(Satellite(
+                    inclinaison=INCLINATION,
+                    raan=raan,
+                    altitude_km=altitude,
+                    phase=np.radians(phase)
+                ))
+        return satellites
+
+# -------------------------------
 # CHECK THE VISIBILITY OF SAT
 # -------------------------------
 
@@ -408,22 +453,11 @@ class Main():
         global RADIUS
         base_radius = RADIUS
 
-        # 12.30 between 2 orbital plans
-        satellites = [
-            Satellite(87.9, 0, 0.3),
-            Satellite(87.9, 12.30, 0.3),
-            Satellite(87.9, 12.30*2, 0.3),
-            Satellite(87.9, 12.30*3, 0.3),
-            Satellite(87.9, 12.30*4, 0.3),
-            Satellite(87.9, 12.30*5, 0.3),
-            Satellite(87.9, 12.30*6, 0.3),
-            Satellite(87.9, 12.30*7, 0.3),
-            Satellite(87.9, 12.30*8, 0.3),
-            Satellite(87.9, 12.30*9, 0.3),
-            Satellite(87.9, 12.30*10, 0.3),
-            Satellite(87.9, 12.30*11, 0.3),
-            Satellite(87.9, 12.30*12, 0.3),
-        ]
+        MODEL = True        # False to use real positions of the satellites
+        if MODEL == True:
+            satellites = self.generateOneWebWalker()
+        else :
+            satellites = self.loadConstellation("./sat-data/oneweb_constellation.json")
         ACTIVATE_ROTATION = True
         t = 0.0
 
@@ -474,22 +508,8 @@ class Main():
 
             self.render(screen, texture, sphere, rot, cx, cy)
             self.drawSat(screen, satellites, rot, cx, cy, t)
-            self.drawSat(screen, satellites, rot, cx, cy, t-2)
-            self.drawSat(screen, satellites, rot, cx, cy, t-4)
-            self.drawSat(screen, satellites, rot, cx, cy, t-6)
-            self.drawSat(screen, satellites, rot, cx, cy, t-8)
-            self.drawSat(screen, satellites, rot, cx, cy, t-10)
-            self.drawSat(screen, satellites, rot, cx, cy, t-12)
-            self.drawSat(screen, satellites, rot, cx, cy, t-14)
-            self.drawSat(screen, satellites, rot, cx, cy, t-16)
-            self.drawSat(screen, satellites, rot, cx, cy, t-18)
-            self.drawSat(screen, satellites, rot, cx, cy, t-20)
-            self.drawSat(screen, satellites, rot, cx, cy, t-22)
-            self.drawSat(screen, satellites, rot, cx, cy, t-24)
-            self.drawSat(screen, satellites, rot, cx, cy, t-26)
-            self.drawSat(screen, satellites, rot, cx, cy, t-28)
             if ACTIVATE_ROTATION:
-                t += 0.01
+                t += (1 / FPS) * TIME_SCALE
             pygame.display.flip()
             clock.tick(FPS)
 
