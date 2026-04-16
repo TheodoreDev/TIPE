@@ -353,7 +353,7 @@ class Main():
 # CHECK THE VISIBILITY OF SAT
 # -------------------------------
 
-    def isHidden(self, pos_rot, radius=0.7):
+    def isHidden(self, pos_rot, radius=0.8):
         x, y, z = pos_rot
         cam_z = 3.0
         #dx, dy, dz = x, y, cam_z - z
@@ -408,8 +408,21 @@ class Main():
         global RADIUS
         base_radius = RADIUS
 
+        # 12.30 between 2 orbital plans
         satellites = [
-            Satellite(20, 0, 0.6),
+            Satellite(87.9, 0, 0.3),
+            Satellite(87.9, 12.30, 0.3),
+            Satellite(87.9, 12.30*2, 0.3),
+            Satellite(87.9, 12.30*3, 0.3),
+            Satellite(87.9, 12.30*4, 0.3),
+            Satellite(87.9, 12.30*5, 0.3),
+            Satellite(87.9, 12.30*6, 0.3),
+            Satellite(87.9, 12.30*7, 0.3),
+            Satellite(87.9, 12.30*8, 0.3),
+            Satellite(87.9, 12.30*9, 0.3),
+            Satellite(87.9, 12.30*10, 0.3),
+            Satellite(87.9, 12.30*11, 0.3),
+            Satellite(87.9, 12.30*12, 0.3),
         ]
         ACTIVATE_ROTATION = True
         t = 0.0
@@ -461,6 +474,20 @@ class Main():
 
             self.render(screen, texture, sphere, rot, cx, cy)
             self.drawSat(screen, satellites, rot, cx, cy, t)
+            self.drawSat(screen, satellites, rot, cx, cy, t-2)
+            self.drawSat(screen, satellites, rot, cx, cy, t-4)
+            self.drawSat(screen, satellites, rot, cx, cy, t-6)
+            self.drawSat(screen, satellites, rot, cx, cy, t-8)
+            self.drawSat(screen, satellites, rot, cx, cy, t-10)
+            self.drawSat(screen, satellites, rot, cx, cy, t-12)
+            self.drawSat(screen, satellites, rot, cx, cy, t-14)
+            self.drawSat(screen, satellites, rot, cx, cy, t-16)
+            self.drawSat(screen, satellites, rot, cx, cy, t-18)
+            self.drawSat(screen, satellites, rot, cx, cy, t-20)
+            self.drawSat(screen, satellites, rot, cx, cy, t-22)
+            self.drawSat(screen, satellites, rot, cx, cy, t-24)
+            self.drawSat(screen, satellites, rot, cx, cy, t-26)
+            self.drawSat(screen, satellites, rot, cx, cy, t-28)
             if ACTIVATE_ROTATION:
                 t += 0.01
             pygame.display.flip()
