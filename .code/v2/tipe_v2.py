@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import json
 from math import *
-from pygame.examples.go_over_there import screen
 
 #-------------------------------
 # SETTINGS
@@ -193,6 +192,10 @@ class Planet():
         py = cy - r[:, 1] * RADIUS * scale
         return px, py, r[:, 2]
 
+#-------------------------------
+# SATELLITE GESTION
+#-------------------------------
+
 class Satellite():
     def __init__(self, inclinaison, raan, altitude_km, phase=0.0):
         self.inclinaison = np.radians(inclinaison)
@@ -364,6 +367,7 @@ class Main():
     def loadConstellation(self, filepath, altitude=1200):
         with open(filepath) as f:
             data = json.load(f)
+        print(len(data))
         return [
             Satellite(
                 inclinaison=sat["inclination_deg"],
@@ -508,6 +512,9 @@ class Main():
 
             self.render(screen, texture, sphere, rot, cx, cy)
             self.drawSat(screen, satellites, rot, cx, cy, t)
+            #i = random.randint(0,len(texture)-1)
+            #j = random.randint(0,len(texture[i])-1)
+            #texture[i, j] = [255, 0, 0]
             if ACTIVATE_ROTATION:
                 t += (1 / FPS) * TIME_SCALE
             pygame.display.flip()
