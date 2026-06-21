@@ -3,10 +3,6 @@ import json
 import math
 
 def parse_tle_to_json(output_file="oneweb_constellation.json"):
-    """
-    Télécharge les TLE OneWeb depuis CelesTrak et extrait
-    inclinaison, RAAN et anomalie moyenne (phase sur l'orbite)
-    """
 
     url = "https://celestrak.org/NORAD/elements/gp.php?GROUP=oneweb&FORMAT=tle"
     response = requests.get(url)
