@@ -4,12 +4,14 @@ import random
 import sys
 import time
 import matplotlib.pyplot as plt
-#plt.ion()       # passage en mode interractif de matplotlib # NE MARCHE PAS
 import matplotlib.patches as mpatches
 import json
 from math import *
+
+
 from planete import Perlin, Planet
 from satellites import Satellite
+from utils import *
 
 #-------------------------------
 # SETTINGS
@@ -243,6 +245,62 @@ class Main():
             px, py, pz = self.pln.projection(pos.reshape(1, 3), rot, cx, cy, RADIUS)
             pygame.draw.circle(screen, (255, 50, 50), (int(px[0]), int(py[0])), 4)
 
+
+    def connectTwoPoints(self, sa_point, satellites, rot, cx, cy, t, screen):
+        sat_path = []
+        distances = []
+        total_distance = 0
+        for sat in satellites:
+            sat_pos = sat.position(t)
+            d = sqrt((sa_point[0][0] - sat_pos[0])**2 + (sa_point[0][1] - sat_pos[1])**2 + (sa_point[0][2] - sat_pos[2])**2)
+            distances.append(d)
+        min_index_start = 0
+        for i in range(len(distances)):
+            if distances[i] < distances[min_index_start]:
+                min_index_start = i
+
+        total_distance += distances[min_index_start]
+        start_point = np.array(sa_point[0])
+        sat_point = satellites[min_index_start].position(t)
+        sat_path.append(start_point)
+        sat_path.append(sat_point)
+        previous_distance_end = sqrt((sa_point[1][0] - sat_point[0])**2 + (sa_point[1][1] - sat_point[1])**2 + (sa_point[1][2] - sat_point[2])**2)
+
+        new_sat_point = sat_point
+        is_com_end = False
+
+        while not is_com_end:
+            sat_distances = []
+            for sat in range(len(satellites)):
+                sat_pos = satellites[sat].position(t)
+                d = sqrt((new_sat_point[0] - sat_pos[0])**2 + (new_sat_point[1] - sat_pos[1])**2 + (new_sat_point[2] - sat_pos[2])**2)
+                sat_distances.append([d, sat])
+            near_sat = satellitesDistanceSorting(sat_distances)[1:8]
+
+            end_distances = []
+            for sat in near_sat:
+                sat_pos = satellites[sat[1]].position(t)
+                d = sqrt((sa_point[1][0] - sat_pos[0])**2 + (sa_point[1][1] - sat_pos[1])**2 + (sa_point[1][2] - sat_pos[2])**2)
+                end_distances.append(d)
+            min_index_end = 0
+            for i in range(len(end_distances)):
+                if end_distances[i] < end_distances[min_index_end]:
+                    min_index_end = i
+
+            if end_distances[min_index_end] < previous_distance_end:
+                new_sat_point = satellites[near_sat[min_index_end][1]].position(t)
+                sat_path.append(new_sat_point)
+                total_distance += end_distances[min_index_end]
+                previous_distance_end = end_distances[min_index_end]
+            else:
+                is_com_end = True
+                end_point = np.array(sa_point[1])
+                f_sat = sat_path[-1]
+                total_distance += sqrt((sa_point[1][0] - f_sat[0])**2 + (sa_point[1][1] - f_sat[1])**2 + (sa_point[1][2] - f_sat[2])**2)
+                sat_path.append(end_point)
+
+        return sat_path, total_distance
+
 # -------------------------------
 # MAIN LOOP
 # -------------------------------
@@ -281,6 +339,19 @@ class Main():
         SHOW_MAP = True  # False to desactivate visualization
         if SHOW_MAP:
             self.tv.showTexture2D(texture, lats, lons, seed=SEED)
+
+        # Choose two point for communication + create [start, arrivial]
+        total_distances = []
+        average_distances = []
+        sa_point = []
+        for _ in range(2):
+            lat_index = random.randint(40,LAT_STEP-40)
+            lon_index = random.randint(0,LON_STEP-1)
+            lat_co = lats[lat_index]
+            lon_co = lons[lon_index]
+            texture[lat_index, lon_index] = [0, 0, 0]
+            sa_point.append([np.cos(lat_co)*np.cos(lon_co), np.cos(lat_co)*np.sin(lon_co), np.sin(lat_co)])
+
 
         while True:
             for event in pygame.event.get():
@@ -325,9 +396,21 @@ class Main():
 
             self.render(screen, texture, sphere, rot, cx, cy)
             self.drawSat(screen, satellites, rot, cx, cy, t)
-            #i = random.randint(0,len(texture)-1)
-            #j = random.randint(0,len(texture[i])-1)
-            #texture[i, j] = [255, 0, 0]
+
+            sat_path= self.connectTwoPoints(sa_point, satellites, rot, cx, cy, t, screen)[0]
+            for k in range(len(sat_path) - 1):
+                pxS1, pyS1, pzS1 = self.pln.projection(sat_path[k].reshape(1, 3), rot, cx, cy, RADIUS)
+                pxS2, pyS2, pzS2 = self.pln.projection(sat_path[k + 1].reshape(1, 3), rot, cx, cy, RADIUS)
+                pygame.draw.line(screen, (255, 0, 255), (int(pxS1[0]), int(pyS1[0])), (int(pxS2[0]), int(pyS2[0])),4)
+
+            total_distances.append(self.connectTwoPoints(sa_point, satellites, rot, cx, cy, t, screen)[1])
+            print(f'[{t}] Average distance between the two points : {np.average(total_distances)}')
+            average_distances.append(np.average(total_distances))
+
+            if abs(t - 10000) < 1.5:
+                plt.plot(average_distances)
+                plt.show()
+
             if ACTIVATE_ROTATION:
                 t += (1 / FPS) * TIME_SCALE
             pygame.display.flip()
