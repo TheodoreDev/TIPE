@@ -407,7 +407,7 @@ class Main():
             print(f'[{t}] Average distance between the two points : {np.average(total_distances)}')
             average_distances.append(np.average(total_distances))
 
-            if abs(t - 10000) < 1.5:
+            if abs(t - 2000) < 1.5:
                 plt.plot(average_distances)
                 plt.show()
 

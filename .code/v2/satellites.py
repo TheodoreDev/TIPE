@@ -3,9 +3,6 @@ import numpy as np
 import random
 import sys
 import time
-import matplotlib.pyplot as plt
-#plt.ion()       # passage en mode interractif de matplotlib # NE MARCHE PAS
-import matplotlib.patches as mpatches
 import json
 from math import *
 
