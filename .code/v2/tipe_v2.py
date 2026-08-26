@@ -193,8 +193,8 @@ class Main():
             for sat in data
         ]
 
-    def generateOneWebWalker(self, altitude=1200):
-        N_PLANES = 12
+    def generateOneWebWalker(self, N_planes, altitude=1200):
+        N_PLANES = N_planes
         N_PER_PLANE = 49  # 12 * 49 = 588, + some more in reserve to arrive to 648
         INCLINATION = 87.9
 
@@ -249,7 +249,7 @@ class Main():
     def connectTwoPoints(self, sa_point, satellites, rot, cx, cy, t, screen):
         sat_path = []
         distances = []
-        total_distance = 0
+        pseudo_latency = 0
         for sat in satellites:
             sat_pos = sat.position(t)
             d = sqrt((sa_point[0][0] - sat_pos[0])**2 + (sa_point[0][1] - sat_pos[1])**2 + (sa_point[0][2] - sat_pos[2])**2)
@@ -259,7 +259,7 @@ class Main():
             if distances[i] < distances[min_index_start]:
                 min_index_start = i
 
-        total_distance += distances[min_index_start]
+        pseudo_latency += distances[min_index_start]
         start_point = np.array(sa_point[0])
         sat_point = satellites[min_index_start].position(t)
         sat_path.append(start_point)
@@ -290,16 +290,16 @@ class Main():
             if end_distances[min_index_end] < previous_distance_end:
                 new_sat_point = satellites[near_sat[min_index_end][1]].position(t)
                 sat_path.append(new_sat_point)
-                total_distance += end_distances[min_index_end]
+                pseudo_latency += end_distances[min_index_end]
                 previous_distance_end = end_distances[min_index_end]
             else:
                 is_com_end = True
                 end_point = np.array(sa_point[1])
                 f_sat = sat_path[-1]
-                total_distance += sqrt((sa_point[1][0] - f_sat[0])**2 + (sa_point[1][1] - f_sat[1])**2 + (sa_point[1][2] - f_sat[2])**2)
+                pseudo_latency += sqrt((sa_point[1][0] - f_sat[0])**2 + (sa_point[1][1] - f_sat[1])**2 + (sa_point[1][2] - f_sat[2])**2)
                 sat_path.append(end_point)
 
-        return sat_path, total_distance
+        return sat_path, pseudo_latency
 
 # -------------------------------
 # MAIN LOOP
@@ -309,6 +309,13 @@ class Main():
         screen = pygame.display.set_mode((WIDTH, HEIGHT))
         pygame.display.set_caption('TIPE 3D VISUALIZATION')
         clock = pygame.time.Clock()
+        mesure_number = 0
+        direct_distance = 0
+        pseudo_latencies = []
+        pseudo_speed_ratios = []
+        avg_pseudo_speed_ratio = []
+        sa_point = []
+        N_planes = 1
 
         print("Texture generation ...")
         start = time.time()
@@ -328,29 +335,14 @@ class Main():
         global RADIUS
         base_radius = RADIUS
 
-        MODEL = True        # False to use real positions of the satellites
-        if MODEL == True:
-            satellites = self.generateOneWebWalker()
-        else :
-            satellites = self.loadConstellation("./sat-data/oneweb_constellation.json")
+        satellites = self.generateOneWebWalker(N_planes)
+
         ACTIVATE_ROTATION = True
         t = 0.0
 
         SHOW_MAP = True  # False to desactivate visualization
         if SHOW_MAP:
             self.tv.showTexture2D(texture, lats, lons, seed=SEED)
-
-        # Choose two point for communication + create [start, arrivial]
-        total_distances = []
-        average_distances = []
-        sa_point = []
-        for _ in range(2):
-            lat_index = random.randint(40,LAT_STEP-40)
-            lon_index = random.randint(0,LON_STEP-1)
-            lat_co = lats[lat_index]
-            lon_co = lons[lon_index]
-            texture[lat_index, lon_index] = [0, 0, 0]
-            sa_point.append([np.cos(lat_co)*np.cos(lon_co), np.cos(lat_co)*np.sin(lon_co), np.sin(lat_co)])
 
 
         while True:
@@ -397,22 +389,62 @@ class Main():
             self.render(screen, texture, sphere, rot, cx, cy)
             self.drawSat(screen, satellites, rot, cx, cy, t)
 
+            if mesure_number % 300 == 0:
+                if mesure_number != 0:
+                    # calcul of the ratio between pseudo latency and direct distance
+                    average_pseudo_latency = np.average(pseudo_latencies)
+                    print(f'[{t}] Average pseudo latency between the two points : {average_pseudo_latency}')
+                    print(f'[{t}] Direct distance between the two points : {direct_distance}')
+                    pseudo_speed_ratios.append(average_pseudo_latency / direct_distance)
+
+
+                # Choose two point for communication + create [start, arrivial]
+                pseudo_latencies = []
+                direct_distance = 0
+                sa_point_angle = []
+                sa_point = []
+                for _ in range(2):
+                    lat_index = random.randint(30, LAT_STEP - 30)
+                    lon_index = random.randint(0, LON_STEP - 1)
+                    lat_co = lats[lat_index]
+                    lon_co = lons[lon_index]
+                    sa_point_angle.append((lat_co, lon_co))
+                    texture[lat_index, lon_index] = [0, 0, 0]
+                    sa_point.append([np.cos(lat_co) * np.cos(lon_co), np.cos(lat_co) * np.sin(lon_co), np.sin(lat_co)])
+
+                # Direct distance between the 2 points on the globe (Haversine)
+                delta_lat = sa_point_angle[1][0] - sa_point_angle[0][0]
+                delta_lon = sa_point_angle[1][1] - sa_point_angle[0][1]
+                a_inter = np.sin(delta_lat/2)**2 + np.cos(sa_point_angle[0][0])*np.cos(sa_point_angle[1][0])*np.sin(delta_lon/2)**2
+                c_angle = 2 * np.atan2(sqrt(a_inter), sqrt(1-a_inter))
+                direct_distance = RADIUS * c_angle
+
+
             sat_path= self.connectTwoPoints(sa_point, satellites, rot, cx, cy, t, screen)[0]
             for k in range(len(sat_path) - 1):
                 pxS1, pyS1, pzS1 = self.pln.projection(sat_path[k].reshape(1, 3), rot, cx, cy, RADIUS)
                 pxS2, pyS2, pzS2 = self.pln.projection(sat_path[k + 1].reshape(1, 3), rot, cx, cy, RADIUS)
                 pygame.draw.line(screen, (255, 0, 255), (int(pxS1[0]), int(pyS1[0])), (int(pxS2[0]), int(pyS2[0])),4)
 
-            total_distances.append(self.connectTwoPoints(sa_point, satellites, rot, cx, cy, t, screen)[1])
-            print(f'[{t}] Average distance between the two points : {np.average(total_distances)}')
-            average_distances.append(np.average(total_distances))
+            if mesure_number % 15000 == 0 and mesure_number != 0:
+                avg_pseudo_speed_ratio.append(np.average(pseudo_speed_ratios))
 
-            if abs(t - 2000) < 1.5:
-                plt.plot(average_distances)
-                plt.show()
+                if N_planes == 20:
+                    plt.scatter([i+1 for i in range(N_planes)], avg_pseudo_speed_ratio)
+                    plt.ylabel('Inv Speed')
+                    plt.xlabel('N planes')
+                    plt.legend()
+                    plt.show()
+
+                N_planes += 1
+                satellites = self.generateOneWebWalker(N_planes)
 
             if ACTIVATE_ROTATION:
                 t += (1 / FPS) * TIME_SCALE
+
+                pseudo_latencies.append(self.connectTwoPoints(sa_point, satellites, rot, cx, cy, t, screen)[1])
+                mesure_number += 1
+
             pygame.display.flip()
             clock.tick(FPS)
 
