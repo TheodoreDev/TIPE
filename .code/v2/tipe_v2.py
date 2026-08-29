@@ -275,7 +275,7 @@ class Main():
                 sat_pos = satellites[sat].position(t)
                 d = sqrt((new_sat_point[0] - sat_pos[0])**2 + (new_sat_point[1] - sat_pos[1])**2 + (new_sat_point[2] - sat_pos[2])**2)
                 sat_distances.append([d, sat])
-            near_sat = satellitesDistanceSorting(sat_distances)[1:8]
+            near_sat = satellitesDistanceSorting(sat_distances)[1:15]
 
             end_distances = []
             for sat in near_sat:
@@ -287,7 +287,8 @@ class Main():
                 if end_distances[i] < end_distances[min_index_end]:
                     min_index_end = i
 
-            if end_distances[min_index_end] < previous_distance_end:
+            d_current_to_end = sqrt((sa_point[1][0] - new_sat_point[0]) ** 2 + (sa_point[1][1] - new_sat_point[1]) ** 2 + (sa_point[1][2] - new_sat_point[2]) ** 2)
+            if end_distances[min_index_end] < previous_distance_end and end_distances[min_index_end] < d_current_to_end:
                 new_sat_point = satellites[near_sat[min_index_end][1]].position(t)
                 sat_path.append(new_sat_point)
                 pseudo_latency += end_distances[min_index_end]
@@ -300,6 +301,77 @@ class Main():
                 sat_path.append(end_point)
 
         return sat_path, pseudo_latency
+
+    def connectTwoPointsDji(self, sa_point, satellites, rot, cx, cy, t, N_sat):
+        isl_range = 2500/6371                         # 2500km is max range for modern sat
+
+        positions = np.array([sat.position(t) for sat in satellites])
+        diff = positions[:, np.newaxis, :] - positions[np.newaxis, :, :]
+        d_mat = np.sqrt(np.sum(diff**2, axis=-1))
+        adj_sat_mat = np.where(d_mat < isl_range, d_mat, np.inf)
+        np.fill_diagonal(adj_sat_mat, np.inf)
+
+        sat_path = []
+        pseudo_latency = 0
+
+        start_point = np.array(sa_point[0])
+        stop_point = np.array(sa_point[1])
+
+        min_index_sa = []
+        for point in sa_point:
+            distances = []
+            current = np.array(point)
+            for sat in satellites:
+                sat_pos = sat.position(t)
+                d = sqrt((current[0] - sat_pos[0]) ** 2 + (current[1] - sat_pos[1]) ** 2 + (
+                            current[2] - sat_pos[2]) ** 2)
+                distances.append(d)
+            min_index = 0
+            for i in range(len(distances)):
+                if distances[i] < distances[min_index]:
+                    min_index = i
+            pseudo_latency += distances[min_index]
+            min_index_sa.append(min_index)
+
+        sat_distances = np.full(N_sat, np.inf)
+        sat_distances[min_index_sa[0]] = 0
+        visited = set()
+        previous_list = np.full(N_sat, -1, dtype=int)
+
+        while len(visited) < N_sat:
+            near_sat = np.where([i not in visited for i in range(N_sat)], sat_distances, np.inf)
+            current = np.argmin(near_sat)
+
+            if current == min_index_sa[1]:
+                break
+            if sat_distances[current] == np.inf:
+                break
+            visited.add(current)
+
+            for n in range(N_sat):
+                if n in visited:
+                    continue
+                if adj_sat_mat[current][n] == np.inf:
+                    continue
+                candidate = sat_distances[current] + adj_sat_mat[current][n]
+                if candidate < sat_distances[n]:
+                    sat_distances[n] = candidate
+                    previous_list[n] = current
+
+        if sat_distances[min_index_sa[1]] == np.inf:
+            return [], np.inf
+
+        node = min_index_sa[1]
+        while node != -1:
+            sat_path.append(node)
+            node = previous_list[node]
+        sat_path.reverse()
+
+        path = [start_point] + [satellites[i].position(t) for i in sat_path] + [stop_point]
+        pseudo_latency += sat_distances[min_index_sa[1]]
+        return path, float(pseudo_latency)
+
+
 
 # -------------------------------
 # MAIN LOOP
@@ -315,7 +387,7 @@ class Main():
         pseudo_speed_ratios = []
         avg_pseudo_speed_ratio = []
         sa_point = []
-        N_planes = 1
+        N_planes = 3
 
         print("Texture generation ...")
         start = time.time()
@@ -389,7 +461,7 @@ class Main():
             self.render(screen, texture, sphere, rot, cx, cy)
             self.drawSat(screen, satellites, rot, cx, cy, t)
 
-            if mesure_number % 300 == 0:
+            if mesure_number % 250 == 0:
                 if mesure_number != 0:
                     # calcul of the ratio between pseudo latency and direct distance
                     average_pseudo_latency = np.average(pseudo_latencies)
@@ -416,24 +488,23 @@ class Main():
                 delta_lat = sa_point_angle[1][0] - sa_point_angle[0][0]
                 delta_lon = sa_point_angle[1][1] - sa_point_angle[0][1]
                 a_inter = np.sin(delta_lat/2)**2 + np.cos(sa_point_angle[0][0])*np.cos(sa_point_angle[1][0])*np.sin(delta_lon/2)**2
-                c_angle = 2 * np.atan2(sqrt(a_inter), sqrt(1-a_inter))
+                c_angle = 2 * atan2(sqrt(a_inter), sqrt(1-a_inter))
                 direct_distance = RADIUS * c_angle
 
 
-            sat_path= self.connectTwoPoints(sa_point, satellites, rot, cx, cy, t, screen)[0]
+            sat_path= self.connectTwoPointsDji(sa_point, satellites, rot, cx, cy, t, N_planes * 49)[0]
             for k in range(len(sat_path) - 1):
                 pxS1, pyS1, pzS1 = self.pln.projection(sat_path[k].reshape(1, 3), rot, cx, cy, RADIUS)
                 pxS2, pyS2, pzS2 = self.pln.projection(sat_path[k + 1].reshape(1, 3), rot, cx, cy, RADIUS)
                 pygame.draw.line(screen, (255, 0, 255), (int(pxS1[0]), int(pyS1[0])), (int(pxS2[0]), int(pyS2[0])),4)
 
-            if mesure_number % 15000 == 0 and mesure_number != 0:
+            if mesure_number % 10000  == 0 and mesure_number != 0: #15000
                 avg_pseudo_speed_ratio.append(np.average(pseudo_speed_ratios))
 
-                if N_planes == 20:
-                    plt.scatter([i+1 for i in range(N_planes)], avg_pseudo_speed_ratio)
+                if N_planes == 18:
+                    plt.scatter([i+1 for i in range(N_planes - len(avg_pseudo_speed_ratio), N_planes)], avg_pseudo_speed_ratio)
                     plt.ylabel('Inv Speed')
                     plt.xlabel('N planes')
-                    plt.legend()
                     plt.show()
 
                 N_planes += 1
@@ -442,7 +513,7 @@ class Main():
             if ACTIVATE_ROTATION:
                 t += (1 / FPS) * TIME_SCALE
 
-                pseudo_latencies.append(self.connectTwoPoints(sa_point, satellites, rot, cx, cy, t, screen)[1])
+                pseudo_latencies.append(self.connectTwoPointsDji(sa_point, satellites, rot, cx, cy, t, N_planes * 49)[1])
                 mesure_number += 1
 
             pygame.display.flip()
