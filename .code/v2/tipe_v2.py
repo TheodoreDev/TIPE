@@ -17,6 +17,7 @@ from utils import *
 # SETTINGS
 #-------------------------------
 nres = 1
+TEST_V = 5
 WIDTH, HEIGHT = 800, 800
 FPS = 60
 TIME_SCALE = 100
@@ -234,7 +235,7 @@ class Main():
         return 0 < t1 < 1.0
 
 # -------------------------------
-# SATELLITE RENDERING
+# SATELLITE RENDERING AND MATH
 # -------------------------------
 
     def drawSat(self, screen, satellites, rot, cx, cy, t):
@@ -302,7 +303,7 @@ class Main():
 
         return sat_path, pseudo_latency
 
-    def connectTwoPointsDji(self, sa_point, satellites, rot, cx, cy, t, N_sat):
+    def connectTwoPointsAst(self, sa_point, satellites, rot, cx, cy, t, N_sat, MIN_ELEVATION_DEG=27.6):
         isl_range = 2500/6371                         # 2500km is max range for modern sat
 
         positions = np.array([sat.position(t) for sat in satellites])
@@ -321,56 +322,63 @@ class Main():
         for point in sa_point:
             distances = []
             current = np.array(point)
-            for sat in satellites:
+            best_index = -1
+            best_dist = np.inf
+            for i, sat in enumerate(satellites):
                 sat_pos = sat.position(t)
                 d = sqrt((current[0] - sat_pos[0]) ** 2 + (current[1] - sat_pos[1]) ** 2 + (
                             current[2] - sat_pos[2]) ** 2)
-                distances.append(d)
-            min_index = 0
-            for i in range(len(distances)):
-                if distances[i] < distances[min_index]:
-                    min_index = i
-            pseudo_latency += distances[min_index]
-            min_index_sa.append(min_index)
+                dot_PS = current[0]*sat_pos[0] + current[1]*sat_pos[1] + current[2]*sat_pos[2]
+                sin_E = (dot_PS - 1.0) / d if d > 0 else -1.0
+                if sin_E >= np.sin(np.radians(MIN_ELEVATION_DEG)) and d < best_dist:
+                    best_dist = d
+                    best_index = i
+            if best_index == -1:
+                return [], np.inf
 
-        sat_distances = np.full(N_sat, np.inf)
-        sat_distances[min_index_sa[0]] = 0
-        visited = set()
-        previous_list = np.full(N_sat, -1, dtype=int)
+            pseudo_latency += best_dist
+            min_index_sa.append(best_index)
 
-        while len(visited) < N_sat:
-            near_sat = np.where([i not in visited for i in range(N_sat)], sat_distances, np.inf)
-            current = np.argmin(near_sat)
-
-            if current == min_index_sa[1]:
-                break
-            if sat_distances[current] == np.inf:
-                break
-            visited.add(current)
-
-            for n in range(N_sat):
-                if n in visited:
-                    continue
-                if adj_sat_mat[current][n] == np.inf:
-                    continue
-                candidate = sat_distances[current] + adj_sat_mat[current][n]
-                if candidate < sat_distances[n]:
-                    sat_distances[n] = candidate
-                    previous_list[n] = current
-
-        if sat_distances[min_index_sa[1]] == np.inf:
-            return [], np.inf
-
-        node = min_index_sa[1]
-        while node != -1:
-            sat_path.append(node)
-            node = previous_list[node]
-        sat_path.reverse()
+        sat_path, sat_distances = Astar(positions, min_index_sa, adj_sat_mat, N_sat)
 
         path = [start_point] + [satellites[i].position(t) for i in sat_path] + [stop_point]
         pseudo_latency += sat_distances[min_index_sa[1]]
-        return path, float(pseudo_latency)
+        latency = ((float(pseudo_latency) * 6371) / 300000) + (len(path) * 0.005)
 
+        return path, latency
+
+    def coverageCalculation(self, satellites, t, n_lat=30, n_lon=60, min_elevation_deg=27.6):
+        lats = np.linspace(-np.pi/2, np.pi/2, n_lat)
+        lons = np.linspace(-np.pi, np.pi, n_lon, endpoint=False)
+        lon_grid, lat_grid = np.meshgrid(lons, lats)
+
+        px = np.cos(lat_grid) * np.cos(lon_grid)
+        py = np.cos(lat_grid) * np.sin(lon_grid)
+        pz = np.sin(lat_grid)
+        points = np.stack([px, py, pz], axis=-1)
+
+        weight = np.cos(lat_grid)
+        is_covered = np.zeros(lat_grid.shape, dtype=bool)
+
+        for sat in satellites:
+            diff = sat.position(t)[None, None, :] - points
+            d = np.linalg.norm(diff, axis=-1)
+            dot_PS = np.tensordot(points, sat.position(t), axes=([-1], [0]))
+
+            with np.errstate(divide='ignore', invalid='ignore'):
+                sin_E = np.where(d > 0, (dot_PS - 1.0) / d, -1.0)
+
+            is_covered |= (sin_E >= np.sin(np.radians(min_elevation_deg)))
+            if is_covered.all():
+                break
+
+        return np.sum(weight * is_covered) / np.sum(weight)
+
+    def satCostEff(self, avg_coverage, N_planes, cost_per_sat=1e6, n_per_plane=49):
+        if avg_coverage <= 0 :
+            return np.inf
+        total_cost = N_planes * n_per_plane * cost_per_sat
+        return total_cost / (avg_coverage*100)
 
 
 # -------------------------------
@@ -383,11 +391,13 @@ class Main():
         clock = pygame.time.Clock()
         mesure_number = 0
         direct_distance = 0
-        pseudo_latencies = []
+        latencies = []
         pseudo_speed_ratios = []
+        sat_coverages = []
         avg_pseudo_speed_ratio = []
+        costs_for_Ns = []
         sa_point = []
-        N_planes = 3
+        N_planes = 4
 
         print("Texture generation ...")
         start = time.time()
@@ -464,47 +474,74 @@ class Main():
             if mesure_number % 250 == 0:
                 if mesure_number != 0:
                     # calcul of the ratio between pseudo latency and direct distance
-                    average_pseudo_latency = np.average(pseudo_latencies)
-                    print(f'[{t}] Average pseudo latency between the two points : {average_pseudo_latency}')
+                    valid_latencies = [i for i in latencies if np.isfinite(i)]
+                    average_latency = np.average(valid_latencies) if len(valid_latencies) > 0 else np.inf
+                    print(f'[{t}] Average pseudo latency between the two points : {average_latency}')
                     print(f'[{t}] Direct distance between the two points : {direct_distance}')
-                    pseudo_speed_ratios.append(average_pseudo_latency / direct_distance)
+                    pseudo_speed_ratios.append(average_latency / direct_distance)     # / direct_distance
+
+                if True:        # True = mesure on different distance for same N_planes
+                    # Choose two point for communication + create [start, arrivial]
+                    latencies = []
+                    sa_point_angle = []
+                    sa_point = []
+                    for _ in range(2):
+                        lat_index = random.randint(30, LAT_STEP - 30)
+                        lon_index = random.randint(0, LON_STEP - 1)
+                        lat_co = lats[lat_index]
+                        lon_co = lons[lon_index]
+                        sa_point_angle.append((lat_co, lon_co))
+                        texture[lat_index, lon_index] = [0, 0, 0]
+                        sa_point.append([np.cos(lat_co) * np.cos(lon_co), np.cos(lat_co) * np.sin(lon_co), np.sin(lat_co)])
+
+                    # Direct distance between the 2 points on the globe (Haversine)
+                    delta_lat = sa_point_angle[1][0] - sa_point_angle[0][0]
+                    delta_lon = sa_point_angle[1][1] - sa_point_angle[0][1]
+                    a_inter = np.sin(delta_lat/2)**2 + np.cos(sa_point_angle[0][0])*np.cos(sa_point_angle[1][0])*np.sin(delta_lon/2)**2
+                    c_angle = 2 * atan2(sqrt(a_inter), sqrt(1-a_inter))
+                    direct_distance = 6371 * c_angle
 
 
-                # Choose two point for communication + create [start, arrivial]
-                pseudo_latencies = []
-                direct_distance = 0
-                sa_point_angle = []
-                sa_point = []
-                for _ in range(2):
-                    lat_index = random.randint(30, LAT_STEP - 30)
-                    lon_index = random.randint(0, LON_STEP - 1)
-                    lat_co = lats[lat_index]
-                    lon_co = lons[lon_index]
-                    sa_point_angle.append((lat_co, lon_co))
-                    texture[lat_index, lon_index] = [0, 0, 0]
-                    sa_point.append([np.cos(lat_co) * np.cos(lon_co), np.cos(lat_co) * np.sin(lon_co), np.sin(lat_co)])
-
-                # Direct distance between the 2 points on the globe (Haversine)
-                delta_lat = sa_point_angle[1][0] - sa_point_angle[0][0]
-                delta_lon = sa_point_angle[1][1] - sa_point_angle[0][1]
-                a_inter = np.sin(delta_lat/2)**2 + np.cos(sa_point_angle[0][0])*np.cos(sa_point_angle[1][0])*np.sin(delta_lon/2)**2
-                c_angle = 2 * atan2(sqrt(a_inter), sqrt(1-a_inter))
-                direct_distance = RADIUS * c_angle
-
-
-            sat_path= self.connectTwoPointsDji(sa_point, satellites, rot, cx, cy, t, N_planes * 49)[0]
+            sat_path, latency = self.connectTwoPointsAst(sa_point, satellites, rot, cx, cy, t, N_planes * 49)
             for k in range(len(sat_path) - 1):
                 pxS1, pyS1, pzS1 = self.pln.projection(sat_path[k].reshape(1, 3), rot, cx, cy, RADIUS)
                 pxS2, pyS2, pzS2 = self.pln.projection(sat_path[k + 1].reshape(1, 3), rot, cx, cy, RADIUS)
                 pygame.draw.line(screen, (255, 0, 255), (int(pxS1[0]), int(pyS1[0])), (int(pxS2[0]), int(pyS2[0])),4)
 
-            if mesure_number % 10000  == 0 and mesure_number != 0: #15000
-                avg_pseudo_speed_ratio.append(np.average(pseudo_speed_ratios))
+            if mesure_number % 25000  == 0 and mesure_number != 0: #10500
+                avg_sat_coverage = np.average(sat_coverages)
+                valid_pseudo_speed_ratios = [r for r in pseudo_speed_ratios if np.isfinite(r)]
+                avg_pseudo_speed_ratio.append(np.average(valid_pseudo_speed_ratios))
+                costs_for_Ns.append(self.satCostEff(avg_sat_coverage, N_planes))
 
-                if N_planes == 18:
-                    plt.scatter([i+1 for i in range(N_planes - len(avg_pseudo_speed_ratio), N_planes)], avg_pseudo_speed_ratio)
-                    plt.ylabel('Inv Speed')
+                sat_coverages = []
+                pseudo_speed_ratios = []
+
+                if N_planes == 17:
+                    print(avg_pseudo_speed_ratio, costs_for_Ns)
+                    fig, ax1 = plt.subplots()
+                    ax1.scatter([i + 1 for i in range(N_planes - len(avg_pseudo_speed_ratio), N_planes)], avg_pseudo_speed_ratio, color='blue')
+                    ax1.set_ylabel('Inv Speed', color='blue')
+                    ax1.set_xlabel('N planes')
+                    ax1.tick_params(axis='y', labelcolor='blue')
+                    ax2 = ax1.twinx()
+                    ax2.scatter([i + 1 for i in range(N_planes - len(avg_pseudo_speed_ratio), N_planes)], costs_for_Ns, color='red')
+                    ax2.set_ylabel('Cost', color='red')
+                    ax2.tick_params(axis='y', labelcolor='red')
+                    plt.savefig(f"./pseudo-latency-result/inv_speed_and_cost_v{TEST_V}.png", dpi=150, bbox_inches="tight")
+                    plt.show()
+
+                    plt.scatter(costs_for_Ns, avg_pseudo_speed_ratio)
+                    plt.xlabel('cost')
+                    plt.ylabel('Inv speed')
+                    plt.savefig(f"./pseudo-latency-result/pareto_front_v{TEST_V}.png", dpi=150, bbox_inches="tight")
+                    plt.show()
+
+                    resulty = [0.7*(avg_pseudo_speed_ratio[i]/max(avg_pseudo_speed_ratio)) + 0.3*(costs_for_Ns[i]/max(costs_for_Ns)) for i in range(len(costs_for_Ns))]
+                    plt.scatter([i+1 for i in range(N_planes - len(avg_pseudo_speed_ratio), N_planes)], resulty)
+                    plt.ylabel('Inv Speed * Cost')
                     plt.xlabel('N planes')
+                    plt.savefig(f"./pseudo-latency-result/inv_speed_time_cost_v{TEST_V}.png", dpi=150, bbox_inches="tight")
                     plt.show()
 
                 N_planes += 1
@@ -513,7 +550,8 @@ class Main():
             if ACTIVATE_ROTATION:
                 t += (1 / FPS) * TIME_SCALE
 
-                pseudo_latencies.append(self.connectTwoPointsDji(sa_point, satellites, rot, cx, cy, t, N_planes * 49)[1])
+                latencies.append(latency)
+                sat_coverages.append(self.coverageCalculation(satellites, t))
                 mesure_number += 1
 
             pygame.display.flip()
