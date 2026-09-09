@@ -1,7 +1,9 @@
 from math import *
 import numpy as np
+import pickle
 
 
+# Quick sort algo
 def satellitesDistanceSorting(distances):
     if len(distances) <= 0:
         return distances
@@ -12,6 +14,7 @@ def satellitesDistanceSorting(distances):
         return satellitesDistanceSorting(under) + [pivot] + satellitesDistanceSorting(over)
 
 
+# Astar algo for sat graph
 def Astar(positions, min_index_sa, adj_sat_mat, N_sat):
     sat_path = []
     target_pos = positions[min_index_sa[1]]
@@ -53,3 +56,13 @@ def Astar(positions, min_index_sa, adj_sat_mat, N_sat):
     sat_path.reverse()
 
     return sat_path, sat_distances
+
+# File gestion function for data save
+def writing(filepath, obj):
+    file_obj = open(filepath, "wb")
+    pickle.dump(obj, file_obj)
+
+def reading(filepath):
+    file_obj = open(filepath, "rb")
+    obj = pickle.load(file_obj)
+    print(obj)

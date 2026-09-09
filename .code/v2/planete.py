@@ -175,6 +175,9 @@ class Planet():
     def rotY(self, a):
         c, s = np.cos(a), np.sin(a)
         return np.array([[c, 0, s], [0, 1, 0], [-s, 0, c]], dtype=np.float32)
+    def rotZ(self, a):
+        c, s = np.cos(a), np.sin(a)
+        return np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]], dtype=np.float32)
 
 #-------------------------------
 # PROJECTION AND PERSPECTIVE

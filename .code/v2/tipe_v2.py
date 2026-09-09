@@ -12,12 +12,13 @@ from math import *
 from planete import Perlin, Planet
 from satellites import Satellite
 from utils import *
+from simu import *
 
 #-------------------------------
 # SETTINGS
 #-------------------------------
 nres = 1
-TEST_V = 5
+TEST_V = 6.0
 WIDTH, HEIGHT = 800, 800
 FPS = 60
 TIME_SCALE = 100
@@ -25,6 +26,7 @@ RADIUS = 280
 FOCAL = 900
 LAT_STEP = int(120 * nres)
 LON_STEP = int(240 * nres)
+OMEGA_EARTH = (2 * pi/86164.0)
 SEED = int(random.random() * 100000000)
 print(f'Seed: {SEED}')
 
@@ -122,13 +124,14 @@ class Main():
 # MAIN RENDER
 #-------------------------------
 
-    def render(self, screen, texture, sphere, rot, cx, cy):
+    def render(self, screen, texture, sphere, rot, cx, cy, t):
         screen.fill((5, 5, 15))
 
         # Flattening the points (LAT*LON, 3)
         pts_flat = sphere.reshape(-1, 3)
         colors_flat = texture.reshape(-1, 3)
-        px, py, pz = self.pln.projection(pts_flat, rot, cx, cy, RADIUS)
+        rot_earth = rot @ self.pln.rotZ(OMEGA_EARTH * t)
+        px, py, pz = self.pln.projection(pts_flat, rot_earth, cx, cy, RADIUS)
 
         # Painter algorithm
         order = np.argsort(pz)
@@ -247,7 +250,7 @@ class Main():
             pygame.draw.circle(screen, (255, 50, 50), (int(px[0]), int(py[0])), 4)
 
 
-    def connectTwoPoints(self, sa_point, satellites, rot, cx, cy, t, screen):
+    def connectTwoPoints(self, sa_point, satellites, rot, cx, cy, t, screen):       # Not used anymore
         sat_path = []
         distances = []
         pseudo_latency = 0
@@ -352,10 +355,12 @@ class Main():
         lons = np.linspace(-np.pi, np.pi, n_lon, endpoint=False)
         lon_grid, lat_grid = np.meshgrid(lons, lats)
 
-        px = np.cos(lat_grid) * np.cos(lon_grid)
-        py = np.cos(lat_grid) * np.sin(lon_grid)
+        rz = self.pln.rotZ(OMEGA_EARTH*t)
+        px_fix = np.cos(lat_grid) * np.cos(lon_grid)
+        py_fix = np.cos(lat_grid) * np.sin(lon_grid)
         pz = np.sin(lat_grid)
-        points = np.stack([px, py, pz], axis=-1)
+        points_fix = np.stack([px_fix, py_fix, pz], axis=-1)
+        points = points_fix @ rz.T
 
         weight = np.cos(lat_grid)
         is_covered = np.zeros(lat_grid.shape, dtype=bool)
@@ -389,6 +394,7 @@ class Main():
         screen = pygame.display.set_mode((WIDTH, HEIGHT))
         pygame.display.set_caption('TIPE 3D VISUALIZATION')
         clock = pygame.time.Clock()
+        sa_point_angle = []
         mesure_number = 0
         direct_distance = 0
         latencies = []
@@ -397,7 +403,7 @@ class Main():
         avg_pseudo_speed_ratio = []
         costs_for_Ns = []
         sa_point = []
-        N_planes = 4
+        N_planes = 6
 
         print("Texture generation ...")
         start = time.time()
@@ -468,7 +474,7 @@ class Main():
                         sens = 0.005
                         rot = self.pln.rotY(dx*sens) @ self.pln.rotX(dy*sens) @ rot
 
-            self.render(screen, texture, sphere, rot, cx, cy)
+            self.render(screen, texture, sphere, rot, cx, cy, t)
             self.drawSat(screen, satellites, rot, cx, cy, t)
 
             if mesure_number % 250 == 0:
@@ -480,7 +486,7 @@ class Main():
                     print(f'[{t}] Direct distance between the two points : {direct_distance}')
                     pseudo_speed_ratios.append(average_latency / direct_distance)     # / direct_distance
 
-                if True:        # True = mesure on different distance for same N_planes
+                if mesure_number == 0:        # True = mesure on different distance for same N_planes
                     # Choose two point for communication + create [start, arrivial]
                     latencies = []
                     sa_point_angle = []
@@ -501,6 +507,12 @@ class Main():
                     c_angle = 2 * atan2(sqrt(a_inter), sqrt(1-a_inter))
                     direct_distance = 6371 * c_angle
 
+            # earth rotation managing
+            rz = self.pln.rotZ(OMEGA_EARTH * t)
+            sa_point = []
+            for lat_co, lon_co in sa_point_angle:
+                v = np.array([np.cos(lat_co) * np.cos(lon_co), np.cos(lat_co) * np.sin(lon_co), np.sin(lat_co)])
+                sa_point.append((rz @ v).tolist())
 
             sat_path, latency = self.connectTwoPointsAst(sa_point, satellites, rot, cx, cy, t, N_planes * 49)
             for k in range(len(sat_path) - 1):
@@ -508,7 +520,7 @@ class Main():
                 pxS2, pyS2, pzS2 = self.pln.projection(sat_path[k + 1].reshape(1, 3), rot, cx, cy, RADIUS)
                 pygame.draw.line(screen, (255, 0, 255), (int(pxS1[0]), int(pyS1[0])), (int(pxS2[0]), int(pyS2[0])),4)
 
-            if mesure_number % 25000  == 0 and mesure_number != 0: #10500
+            if mesure_number % 250  == 0 and mesure_number != 0: #10500
                 avg_sat_coverage = np.average(sat_coverages)
                 valid_pseudo_speed_ratios = [r for r in pseudo_speed_ratios if np.isfinite(r)]
                 avg_pseudo_speed_ratio.append(np.average(valid_pseudo_speed_ratios))
@@ -517,32 +529,8 @@ class Main():
                 sat_coverages = []
                 pseudo_speed_ratios = []
 
-                if N_planes == 17:
-                    print(avg_pseudo_speed_ratio, costs_for_Ns)
-                    fig, ax1 = plt.subplots()
-                    ax1.scatter([i + 1 for i in range(N_planes - len(avg_pseudo_speed_ratio), N_planes)], avg_pseudo_speed_ratio, color='blue')
-                    ax1.set_ylabel('Inv Speed', color='blue')
-                    ax1.set_xlabel('N planes')
-                    ax1.tick_params(axis='y', labelcolor='blue')
-                    ax2 = ax1.twinx()
-                    ax2.scatter([i + 1 for i in range(N_planes - len(avg_pseudo_speed_ratio), N_planes)], costs_for_Ns, color='red')
-                    ax2.set_ylabel('Cost', color='red')
-                    ax2.tick_params(axis='y', labelcolor='red')
-                    plt.savefig(f"./pseudo-latency-result/inv_speed_and_cost_v{TEST_V}.png", dpi=150, bbox_inches="tight")
-                    plt.show()
-
-                    plt.scatter(costs_for_Ns, avg_pseudo_speed_ratio)
-                    plt.xlabel('cost')
-                    plt.ylabel('Inv speed')
-                    plt.savefig(f"./pseudo-latency-result/pareto_front_v{TEST_V}.png", dpi=150, bbox_inches="tight")
-                    plt.show()
-
-                    resulty = [0.7*(avg_pseudo_speed_ratio[i]/max(avg_pseudo_speed_ratio)) + 0.3*(costs_for_Ns[i]/max(costs_for_Ns)) for i in range(len(costs_for_Ns))]
-                    plt.scatter([i+1 for i in range(N_planes - len(avg_pseudo_speed_ratio), N_planes)], resulty)
-                    plt.ylabel('Inv Speed * Cost')
-                    plt.xlabel('N planes')
-                    plt.savefig(f"./pseudo-latency-result/inv_speed_time_cost_v{TEST_V}.png", dpi=150, bbox_inches="tight")
-                    plt.show()
+                if N_planes == 14:
+                    simuScoreNplanes(avg_pseudo_speed_ratio, costs_for_Ns, N_planes, TEST_V)
 
                 N_planes += 1
                 satellites = self.generateOneWebWalker(N_planes)
