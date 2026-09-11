@@ -26,12 +26,14 @@ def simuScoreNplanes(avg_pseudo_speed_ratio, costs_for_Ns,  N_planes, TEST_V):
     ax2.tick_params(axis='y', labelcolor='red')
     plt.savefig(f"./pseudo-latency-result/inv_speed_and_cost_v{TEST_V}.png", dpi=150, bbox_inches="tight")
     plt.show()
+    plt.clf()
 
     plt.scatter(costs_for_Ns, avg_pseudo_speed_ratio)
     plt.xlabel('cost')
     plt.ylabel('Inv speed')
     plt.savefig(f"./pseudo-latency-result/pareto_front_v{TEST_V}.png", dpi=150, bbox_inches="tight")
     plt.show()
+    plt.clf()
 
     resulty = [
         0.7 * (avg_pseudo_speed_ratio[i] / max(avg_pseudo_speed_ratio)) + 0.3 * (costs_for_Ns[i] / max(costs_for_Ns))
@@ -41,6 +43,8 @@ def simuScoreNplanes(avg_pseudo_speed_ratio, costs_for_Ns,  N_planes, TEST_V):
     plt.ylabel('Score')
     plt.xlabel('N planes')
     plt.savefig(f"./pseudo-latency-result/inv_speed_time_cost_v{TEST_V}.png", dpi=150, bbox_inches="tight")
+    plt.show()
+    plt.clf()
 
     # Saving data on external file (binary .ted)
     data = {
@@ -51,5 +55,3 @@ def simuScoreNplanes(avg_pseudo_speed_ratio, costs_for_Ns,  N_planes, TEST_V):
         "N_planes_f" : N_planes,
     }
     writing(f"./simu-saves/simu_score_Nplanes_v{TEST_V}.ted", data)
-
-    plt.show()
