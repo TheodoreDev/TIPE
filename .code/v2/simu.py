@@ -5,10 +5,13 @@ import sys
 import time
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+from mpl_toolkits.mplot3d import proj3d
 import json
 from math import *
 
 from utils import *
+
+VALUE_BY_EXCESS_SPEED = 2e13
 
 def simuScoreNplanes(avg_pseudo_speed_ratio, costs_for_Ns,  N_planes, TEST_V):
     print(avg_pseudo_speed_ratio, costs_for_Ns)
@@ -42,16 +45,45 @@ def simuScoreNplanes(avg_pseudo_speed_ratio, costs_for_Ns,  N_planes, TEST_V):
     plt.scatter([i + 1 for i in range(N_planes - len(avg_pseudo_speed_ratio), N_planes)], resulty)
     plt.ylabel('Score')
     plt.xlabel('N planes')
-    plt.savefig(f"./pseudo-latency-result/inv_speed_time_cost_v{TEST_V}.png", dpi=150, bbox_inches="tight")
+    plt.savefig(f"./pseudo-latency-result/score_Nplanes_v{TEST_V}.png", dpi=150, bbox_inches="tight")
     plt.show()
     plt.clf()
 
     # Saving data on external file (binary .ted)
     data = {
-        "simu_version" : TEST_V ,
-        "avg_pseudo_speed_ratio" : avg_pseudo_speed_ratio,
-        "costs_for_Ns" : costs_for_Ns,
-        "result_score" : resulty,
-        "N_planes_f" : N_planes,
+        "simu_version": TEST_V,
+        "avg_pseudo_speed_ratio": avg_pseudo_speed_ratio,
+        "costs_for_Ns": costs_for_Ns,
+        "result_score": resulty,
+        "N_planes_f": N_planes,
     }
     writing(f"./simu-saves/simu_score_Nplanes_v{TEST_V}.ted", data)
+
+
+def simuScoreNplanesNperplane(result_points, TEST_V, MIN_ELEVATION_DEG):
+    print(result_points)
+    avg_pseudo_speed_ratio = [result_points[i][0][0] for i in range(len(result_points))]
+    costs_for_Ns = [result_points[i][0][1] for i in range(len(result_points))]
+    avg_sat_coverage = [result_points[i][3] for i in range(len(result_points))]
+
+    excess_speed = [max(0.0, r-1/300000) for r in avg_pseudo_speed_ratio]
+
+    result_scores = [
+        costs_for_Ns[i] + VALUE_BY_EXCESS_SPEED * excess_speed[i]
+        for i in range(len(result_points))
+    ]
+    N_planes_list = [result_points[i][1] for i in range(len(result_points))]
+    N_per_plane_list = [result_points[i][2] for i in range(len(result_points))]
+
+    # Saving data on external file (binary .ted)
+    data = {
+        "simu_version": TEST_V,
+        "avg_pseudo_speed_ratio": avg_pseudo_speed_ratio,
+        "costs_for_Ns": costs_for_Ns,
+        "N_planes_f": N_planes_list,
+        "N_per_plane_list" : N_per_plane_list,
+        "raw_data" : result_points,
+    }
+
+    writing(f"./simu-saves/simu_score_Nplanes_Nperplane_v{TEST_V}.ted", data)
+    print("[SUCCESS] simulation saved successfully")

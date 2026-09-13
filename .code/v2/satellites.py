@@ -7,14 +7,6 @@ import json
 from math import *
 
 
-nres = 1
-WIDTH, HEIGHT = 800, 800
-FPS = 60
-TIME_SCALE = 100
-RADIUS = 280
-FOCAL = 900
-LAT_STEP = int(120 * nres)
-LON_STEP = int(240 * nres)
 
 # Colour Palette
 DEEP_OCEAN = np.array([10, 60, 120], dtype=np.float32)

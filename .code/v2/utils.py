@@ -65,4 +65,4 @@ def writing(filepath, obj):
 def reading(filepath):
     file_obj = open(filepath, "rb")
     obj = pickle.load(file_obj)
-    print(obj)
+    return(obj)

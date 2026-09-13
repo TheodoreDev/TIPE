@@ -18,7 +18,7 @@ from simu import *
 # SETTINGS
 #-------------------------------
 nres = 1
-TEST_V = 6.0
+TEST_V = 6.1
 WIDTH, HEIGHT = 800, 800
 FPS = 60
 TIME_SCALE = 100
@@ -27,6 +27,7 @@ FOCAL = 900
 LAT_STEP = int(120 * nres)
 LON_STEP = int(240 * nres)
 OMEGA_EARTH = (2 * pi/86164.0)
+MIN_ELEVATION_DEG = 45
 SEED = int(random.random() * 100000000)
 print(f'Seed: {SEED}')
 
@@ -197,9 +198,9 @@ class Main():
             for sat in data
         ]
 
-    def generateOneWebWalker(self, N_planes, altitude=1200):
+    def generateOneWebWalker(self, N_planes, N_per_plane, altitude=1200):
         N_PLANES = N_planes
-        N_PER_PLANE = 49  # 12 * 49 = 588, + some more in reserve to arrive to 648
+        N_PER_PLANE = N_per_plane  # 12 * 49 = 588, + some more in reserve to arrive to 648
         INCLINATION = 87.9
 
         satellites = []
@@ -306,7 +307,7 @@ class Main():
 
         return sat_path, pseudo_latency
 
-    def connectTwoPointsAst(self, sa_point, satellites, rot, cx, cy, t, N_sat, MIN_ELEVATION_DEG=27.6):
+    def connectTwoPointsAst(self, sa_point, satellites, rot, cx, cy, t, N_sat, MIN_ELEVATION_DEG):
         isl_range = 2500/6371                         # 2500km is max range for modern sat
 
         positions = np.array([sat.position(t) for sat in satellites])
@@ -350,7 +351,7 @@ class Main():
 
         return path, latency
 
-    def coverageCalculation(self, satellites, t, n_lat=30, n_lon=60, min_elevation_deg=27.6):
+    def coverageCalculation(self, satellites, t, MIN_ELEVATION_DEG, n_lat=30, n_lon=60): #min_elev_deg=27.6
         lats = np.linspace(-np.pi/2, np.pi/2, n_lat)
         lons = np.linspace(-np.pi, np.pi, n_lon, endpoint=False)
         lon_grid, lat_grid = np.meshgrid(lons, lats)
@@ -373,17 +374,17 @@ class Main():
             with np.errstate(divide='ignore', invalid='ignore'):
                 sin_E = np.where(d > 0, (dot_PS - 1.0) / d, -1.0)
 
-            is_covered |= (sin_E >= np.sin(np.radians(min_elevation_deg)))
+            is_covered |= (sin_E >= np.sin(np.radians(MIN_ELEVATION_DEG)))
             if is_covered.all():
                 break
 
         return np.sum(weight * is_covered) / np.sum(weight)
 
-    def satCostEff(self, avg_coverage, N_planes, cost_per_sat=1e6, n_per_plane=49):
+    def satCostEff(self, avg_coverage, N_planes, n_per_plane, cost_per_sat=1e6):
         if avg_coverage <= 0 :
             return np.inf
-        total_cost = N_planes * n_per_plane * cost_per_sat
-        return total_cost / (avg_coverage*100)
+        total_cost = N_planes * n_per_plane * cost_per_sat + (ceil(N_planes*n_per_plane / 34)) * 100e6
+        return total_cost / avg_coverage
 
 
 # -------------------------------
@@ -402,8 +403,10 @@ class Main():
         sat_coverages = []
         avg_pseudo_speed_ratio = []
         costs_for_Ns = []
+        result_mesure_point = []
         sa_point = []
-        N_planes = 6
+        N_planes = 8
+        N_per_plane = 19
 
         print("Texture generation ...")
         start = time.time()
@@ -423,8 +426,9 @@ class Main():
         global RADIUS
         base_radius = RADIUS
 
-        satellites = self.generateOneWebWalker(N_planes)
+        satellites = self.generateOneWebWalker(N_planes, N_per_plane)
 
+        ACTIVATE_REFRESH = True
         ACTIVATE_ROTATION = True
         t = 0.0
 
@@ -452,6 +456,8 @@ class Main():
                         rot = self.pln.rotY(np.radians(180)) @ self.pln.rotX(np.radians(-90))
                     elif event.key == pygame.K_SPACE:
                         ACTIVATE_ROTATION = False if ACTIVATE_ROTATION else True
+                    elif event.key == pygame.K_a:
+                        ACTIVATE_REFRESH = False if ACTIVATE_REFRESH else True
 
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1:
@@ -474,8 +480,9 @@ class Main():
                         sens = 0.005
                         rot = self.pln.rotY(dx*sens) @ self.pln.rotX(dy*sens) @ rot
 
-            self.render(screen, texture, sphere, rot, cx, cy, t)
-            self.drawSat(screen, satellites, rot, cx, cy, t)
+            if ACTIVATE_REFRESH:
+                self.render(screen, texture, sphere, rot, cx, cy, t)
+                self.drawSat(screen, satellites, rot, cx, cy, t)
 
             if mesure_number % 250 == 0:
                 if mesure_number != 0:
@@ -486,7 +493,7 @@ class Main():
                     print(f'[{t}] Direct distance between the two points : {direct_distance}')
                     pseudo_speed_ratios.append(average_latency / direct_distance)     # / direct_distance
 
-                if mesure_number == 0:        # True = mesure on different distance for same N_planes
+                if True:        # True = mesure on different distance for same N_planes
                     # Choose two point for communication + create [start, arrivial]
                     latencies = []
                     sa_point_angle = []
@@ -514,32 +521,43 @@ class Main():
                 v = np.array([np.cos(lat_co) * np.cos(lon_co), np.cos(lat_co) * np.sin(lon_co), np.sin(lat_co)])
                 sa_point.append((rz @ v).tolist())
 
-            sat_path, latency = self.connectTwoPointsAst(sa_point, satellites, rot, cx, cy, t, N_planes * 49)
-            for k in range(len(sat_path) - 1):
-                pxS1, pyS1, pzS1 = self.pln.projection(sat_path[k].reshape(1, 3), rot, cx, cy, RADIUS)
-                pxS2, pyS2, pzS2 = self.pln.projection(sat_path[k + 1].reshape(1, 3), rot, cx, cy, RADIUS)
-                pygame.draw.line(screen, (255, 0, 255), (int(pxS1[0]), int(pyS1[0])), (int(pxS2[0]), int(pyS2[0])),4)
+            sat_path, latency = self.connectTwoPointsAst(sa_point, satellites, rot, cx, cy, t, N_planes * N_per_plane, MIN_ELEVATION_DEG)
+            if ACTIVATE_REFRESH:
+                for k in range(len(sat_path) - 1):
+                    pxS1, pyS1, pzS1 = self.pln.projection(sat_path[k].reshape(1, 3), rot, cx, cy, RADIUS)
+                    pxS2, pyS2, pzS2 = self.pln.projection(sat_path[k + 1].reshape(1, 3), rot, cx, cy, RADIUS)
+                    pygame.draw.line(screen, (255, 0, 255), (int(pxS1[0]), int(pyS1[0])), (int(pxS2[0]), int(pyS2[0])),4)
 
-            if mesure_number % 250  == 0 and mesure_number != 0: #10500
-                avg_sat_coverage = np.average(sat_coverages)
+            if mesure_number % 12500  == 0 and mesure_number != 0: #12500
+                #avg_sat_coverage = np.average(sat_coverages)
+                avg_sat_coverage = min(sat_coverages)
                 valid_pseudo_speed_ratios = [r for r in pseudo_speed_ratios if np.isfinite(r)]
                 avg_pseudo_speed_ratio.append(np.average(valid_pseudo_speed_ratios))
-                costs_for_Ns.append(self.satCostEff(avg_sat_coverage, N_planes))
+                cost_for_N = self.satCostEff(avg_sat_coverage, N_planes, N_per_plane)
+                costs_for_Ns.append(cost_for_N)
+                result_mesure_point.append([(np.average(valid_pseudo_speed_ratios), cost_for_N), N_planes, N_per_plane, avg_sat_coverage])
 
                 sat_coverages = []
                 pseudo_speed_ratios = []
 
-                if N_planes == 14:
-                    simuScoreNplanes(avg_pseudo_speed_ratio, costs_for_Ns, N_planes, TEST_V)
+                if N_planes == 14 and N_per_plane == 69:
+                    #simuScoreNplanes(avg_pseudo_speed_ratio, costs_for_Ns, N_planes, TEST_V)
+                    simuScoreNplanesNperplane(result_mesure_point, TEST_V, MIN_ELEVATION_DEG)
+                    ACTIVATE_ROTATION = False
 
-                N_planes += 1
-                satellites = self.generateOneWebWalker(N_planes)
+                if N_per_plane == 69:
+                    N_per_plane = 19
+                    N_planes += 1
+                else :
+                    N_per_plane += 10
+
+                satellites = self.generateOneWebWalker(N_planes, N_per_plane)
 
             if ACTIVATE_ROTATION:
                 t += (1 / FPS) * TIME_SCALE
 
                 latencies.append(latency)
-                sat_coverages.append(self.coverageCalculation(satellites, t))
+                sat_coverages.append(self.coverageCalculation(satellites, t, MIN_ELEVATION_DEG))
                 mesure_number += 1
 
             pygame.display.flip()

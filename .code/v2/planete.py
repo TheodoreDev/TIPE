@@ -8,10 +8,6 @@ from math import *
 
 
 nres = 1
-WIDTH, HEIGHT = 800, 800
-FPS = 60
-TIME_SCALE = 100
-#RADIUS = 280
 FOCAL = 900
 LAT_STEP = int(120 * nres)
 LON_STEP = int(240 * nres)
@@ -54,7 +50,7 @@ class Perlin():
         Y = np.floor(y).astype(np.int32) & 255
         xf = x - np.floor(x)
         yf = y - np.floor(y)
-        u = self.fade(xf);
+        u = self.fade(xf)
         v = self.fade(yf)
         aa = self._perm[self._perm[X] + Y]
         ab = self._perm[self._perm[X] + Y + 1]
