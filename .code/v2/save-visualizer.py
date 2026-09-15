@@ -9,7 +9,11 @@ from utils import *
 
 VALUE_BY_EXCESS_SPEED = 8e14
 COVERAGE_MIN = 0.99
-MIN_ELEVATION_DEG = 40
+MIN_ELEVATION_DEG = 45
+
+# -------------------------------
+# DATA RESULT VISUALISATION
+# -------------------------------
 
 def readData(savename):
     save_raw = reading(f'./simu-saves/{savename}.ted')
@@ -55,6 +59,7 @@ def readData(savename):
     plt.title(f'MIN_ELEVATION_DEG = {MIN_ELEVATION_DEG}°', fontsize=10)
 
     plt.tight_layout()
+    fig.subplots_adjust(right=0.85)
     #plt.savefig(f"./pseudo-latency-result/coverage_Nplanes_Nperplane_v{TEST_V}.png", dpi=150, bbox_inches="tight")
     plt.show()
     plt.clf()
@@ -65,7 +70,7 @@ def readData(savename):
     axes.scatter(N_planes_list, N_per_plane_list, result_scores, c=result_scores, cmap='viridis')
     if best_idx is not None:
         axes.scatter([N_planes_list[best_idx]], [N_per_plane_list[best_idx]], [result_scores[best_idx]],
-                     c='red', s=120, marker='*', label=f'Optimum (coverage >= {COVERAGE_MIN})')
+                     c='red', s=120, marker='*', label=f'Optimum ({N_planes_list[best_idx]}, {N_per_plane_list[best_idx]})')
         axes.legend()
     axes.set_xlabel('N Planes')
     axes.set_ylabel('N per Planes')
@@ -74,8 +79,9 @@ def readData(savename):
     plt.title(f'MIN_ELEVATION_DEG = {MIN_ELEVATION_DEG}°', fontsize=10)
 
     plt.tight_layout()
+    fig.subplots_adjust(right=0.85)
     #plt.savefig(f"./pseudo-latency-result/score_Nplanes_Nperplane_v{TEST_V}.png", dpi=150, bbox_inches="tight")
     plt.show()
     plt.clf()
 
-readData('simu_score_Nplanes_Nperplane_v6.1')
+readData('simu_score_Nplanes_Nperplane_v6.2')

@@ -15,10 +15,10 @@ from utils import *
 from simu import *
 
 #-------------------------------
-# SETTINGS
+# SETTINGS / CONST
 #-------------------------------
 nres = 1
-TEST_V = 6.1
+TEST_V = 6.2
 WIDTH, HEIGHT = 800, 800
 FPS = 60
 TIME_SCALE = 100
@@ -32,21 +32,21 @@ SEED = int(random.random() * 100000000)
 print(f'Seed: {SEED}')
 
 # Colour Palette
-DEEP_OCEAN = np.array([10, 60, 120], dtype=np.float32)
-OCEAN = np.array([30, 100, 160], dtype=np.float32)
-LOW_LAND = np.array([60, 120, 50], dtype=np.float32)
-HIGH_LAND = np.array([90, 160, 50], dtype=np.float32)
-MOUNTAIN = np.array([140, 120, 100], dtype=np.float32)
-SNOW = np.array([240, 245, 255], dtype=np.float32)
-DESERT = np.array([200, 175, 90], dtype=np.float32)
-ICE = np.array([210, 235, 255], dtype=np.float32)
+#DEEP_OCEAN = np.array([10, 60, 120], dtype=np.float32)
+#OCEAN = np.array([30, 100, 160], dtype=np.float32)
+#LOW_LAND = np.array([60, 120, 50], dtype=np.float32)
+#HIGH_LAND = np.array([90, 160, 50], dtype=np.float32)
+#MOUNTAIN = np.array([140, 120, 100], dtype=np.float32)
+#SNOW = np.array([240, 245, 255], dtype=np.float32)
+#DESERT = np.array([200, 175, 90], dtype=np.float32)
+#ICE = np.array([210, 235, 255], dtype=np.float32)
 
-
-class TextureVisualizer():
 
 #-------------------------------
 # TEXTURE VISUALIZER
 #-------------------------------
+
+class TextureVisualizer():
 
     def showTexture2D(self, texture, lats, lons, seed=None):
         fig, ax = plt.subplots(figsize=(14, 7), facecolor='#05050F')
@@ -115,6 +115,7 @@ class TextureVisualizer():
         #plt.pause(0.001)
         plt.show()
 
+
 class Main():
 
     def __init__(self):
@@ -132,7 +133,7 @@ class Main():
         pts_flat = sphere.reshape(-1, 3)
         colors_flat = texture.reshape(-1, 3)
         rot_earth = rot @ self.pln.rotZ(OMEGA_EARTH * t)
-        px, py, pz = self.pln.projection(pts_flat, rot_earth, cx, cy, RADIUS)
+        px, py, pz = self.pln.projection(pts_flat, rot_earth, cx, cy, RADIUS, FOCAL)
 
         # Painter algorithm
         order = np.argsort(pz)
@@ -247,7 +248,7 @@ class Main():
             pos = sat.position(t)
             if self.isHidden(rot @ pos):
                 continue
-            px, py, pz = self.pln.projection(pos.reshape(1, 3), rot, cx, cy, RADIUS)
+            px, py, pz = self.pln.projection(pos.reshape(1, 3), rot, cx, cy, RADIUS, FOCAL)
             pygame.draw.circle(screen, (255, 50, 50), (int(px[0]), int(py[0])), 4)
 
 
@@ -307,7 +308,7 @@ class Main():
 
         return sat_path, pseudo_latency
 
-    def connectTwoPointsAst(self, sa_point, satellites, rot, cx, cy, t, N_sat, MIN_ELEVATION_DEG):
+    def connectTwoPointsAst(self, sa_point, satellites, rot, cx, cy, t, N_sat, min_elevation_deg):
         isl_range = 2500/6371                         # 2500km is max range for modern sat
 
         positions = np.array([sat.position(t) for sat in satellites])
@@ -334,7 +335,7 @@ class Main():
                             current[2] - sat_pos[2]) ** 2)
                 dot_PS = current[0]*sat_pos[0] + current[1]*sat_pos[1] + current[2]*sat_pos[2]
                 sin_E = (dot_PS - 1.0) / d if d > 0 else -1.0
-                if sin_E >= np.sin(np.radians(MIN_ELEVATION_DEG)) and d < best_dist:
+                if sin_E >= np.sin(np.radians(min_elevation_deg)) and d < best_dist:
                     best_dist = d
                     best_index = i
             if best_index == -1:
@@ -351,7 +352,7 @@ class Main():
 
         return path, latency
 
-    def coverageCalculation(self, satellites, t, MIN_ELEVATION_DEG, n_lat=30, n_lon=60): #min_elev_deg=27.6
+    def coverageCalculation(self, satellites, t, min_elevation_deg, n_lat=30, n_lon=60): #min_elev_deg=27.6
         lats = np.linspace(-np.pi/2, np.pi/2, n_lat)
         lons = np.linspace(-np.pi, np.pi, n_lon, endpoint=False)
         lon_grid, lat_grid = np.meshgrid(lons, lats)
@@ -374,7 +375,7 @@ class Main():
             with np.errstate(divide='ignore', invalid='ignore'):
                 sin_E = np.where(d > 0, (dot_PS - 1.0) / d, -1.0)
 
-            is_covered |= (sin_E >= np.sin(np.radians(MIN_ELEVATION_DEG)))
+            is_covered |= (sin_E >= np.sin(np.radians(min_elevation_deg)))
             if is_covered.all():
                 break
 
@@ -410,7 +411,7 @@ class Main():
 
         print("Texture generation ...")
         start = time.time()
-        texture, lats, lons = self.pln.buildTexture()
+        texture, lats, lons = self.pln.buildTexture(LAT_STEP, LON_STEP)
         sphere = self.pln.buildSpherePoints(lats, lons)
         end = time.time()
         print(f'Build time : {end - start}')
@@ -524,8 +525,8 @@ class Main():
             sat_path, latency = self.connectTwoPointsAst(sa_point, satellites, rot, cx, cy, t, N_planes * N_per_plane, MIN_ELEVATION_DEG)
             if ACTIVATE_REFRESH:
                 for k in range(len(sat_path) - 1):
-                    pxS1, pyS1, pzS1 = self.pln.projection(sat_path[k].reshape(1, 3), rot, cx, cy, RADIUS)
-                    pxS2, pyS2, pzS2 = self.pln.projection(sat_path[k + 1].reshape(1, 3), rot, cx, cy, RADIUS)
+                    pxS1, pyS1, pzS1 = self.pln.projection(sat_path[k].reshape(1, 3), rot, cx, cy, RADIUS, FOCAL)
+                    pxS2, pyS2, pzS2 = self.pln.projection(sat_path[k + 1].reshape(1, 3), rot, cx, cy, RADIUS, FOCAL)
                     pygame.draw.line(screen, (255, 0, 255), (int(pxS1[0]), int(pyS1[0])), (int(pxS2[0]), int(pyS2[0])),4)
 
             if mesure_number % 12500  == 0 and mesure_number != 0: #12500
@@ -540,9 +541,9 @@ class Main():
                 sat_coverages = []
                 pseudo_speed_ratios = []
 
-                if N_planes == 14 and N_per_plane == 69:
+                if N_planes == 15 and N_per_plane == 69:
                     #simuScoreNplanes(avg_pseudo_speed_ratio, costs_for_Ns, N_planes, TEST_V)
-                    simuScoreNplanesNperplane(result_mesure_point, TEST_V, MIN_ELEVATION_DEG)
+                    simuScoreNplanesNperplane(result_mesure_point, TEST_V, MIN_ELEVATION_DEG, 8e-14)
                     ACTIVATE_ROTATION = False
 
                 if N_per_plane == 69:

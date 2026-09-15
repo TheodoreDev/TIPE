@@ -7,13 +7,6 @@ import json
 from math import *
 
 
-nres = 1
-FOCAL = 900
-LAT_STEP = int(120 * nres)
-LON_STEP = int(240 * nres)
-SEED = 0
-
-
 # Colour Palette
 DEEP_OCEAN = np.array([10, 60, 120], dtype=np.float32)
 OCEAN = np.array([30, 100, 160], dtype=np.float32)
@@ -24,14 +17,17 @@ SNOW = np.array([240, 245, 255], dtype=np.float32)
 DESERT = np.array([200, 175, 90], dtype=np.float32)
 ICE = np.array([210, 235, 255], dtype=np.float32)
 
-class Perlin():
 
 # -------------------------------
 # PROCEDURAL GENERATION OF THE PERLIN NOISE
 # -------------------------------
 
-    _perm = np.random.RandomState(SEED).permutation(256)
-    _perm = np.concatenate([_perm, _perm]).astype(np.int32)
+class Perlin():
+
+    def __init__(self, SEED):
+        self.SEED = SEED
+        self._perm = np.random.RandomState(self.SEED).permutation(256)
+        self._perm = np.concatenate([self._perm, self._perm]).astype(np.int32)
 
     def fade(self, t):
         return t * t * t * (t * (t * 6 - 15) + 10)
@@ -71,14 +67,13 @@ class Planet():
 
     def __init__(self, seed):
         self.SEED = seed
-        SEED = self.SEED
-        self.perlin = Perlin()
+        self.perlin = Perlin(self.SEED)
 
 #-------------------------------
 # TEXTURES
 #-------------------------------
 
-    def buildTexture(self):
+    def buildTexture(self, LAT_STEP, LON_STEP):
         lats = np.linspace(-np.pi/2, np.pi/2, LAT_STEP)
         lons = np.linspace(-np.pi, np.pi, LON_STEP)
         lon_grid, lat_grid = np.meshgrid(lons, lats)
@@ -179,7 +174,7 @@ class Planet():
 # PROJECTION AND PERSPECTIVE
 #-------------------------------
 
-    def projection(self, pts3d, rot, cx, cy, RADIUS):
+    def projection(self, pts3d, rot, cx, cy, RADIUS, FOCAL):
         r = (rot @ pts3d.T).T           # rotation
         cam_z = 3.0                     # camera on the z axis
         dz = cam_z - r[:, 2]

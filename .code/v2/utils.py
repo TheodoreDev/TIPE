@@ -2,6 +2,9 @@ from math import *
 import numpy as np
 import pickle
 
+# -------------------------------
+# UTILS FOR THE TIPE
+# -------------------------------
 
 # Quick sort algo
 def satellitesDistanceSorting(distances):

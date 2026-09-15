@@ -11,7 +11,11 @@ from math import *
 
 from utils import *
 
-VALUE_BY_EXCESS_SPEED = 2e13
+
+# -------------------------------
+# SIMULATION DATA SAVING AND CALCULATION
+# -------------------------------
+# One function for each type of experiences
 
 def simuScoreNplanes(avg_pseudo_speed_ratio, costs_for_Ns,  N_planes, TEST_V):
     print(avg_pseudo_speed_ratio, costs_for_Ns)
@@ -60,7 +64,7 @@ def simuScoreNplanes(avg_pseudo_speed_ratio, costs_for_Ns,  N_planes, TEST_V):
     writing(f"./simu-saves/simu_score_Nplanes_v{TEST_V}.ted", data)
 
 
-def simuScoreNplanesNperplane(result_points, TEST_V, MIN_ELEVATION_DEG):
+def simuScoreNplanesNperplane(result_points, TEST_V, MIN_ELEVATION_DEG, VALUE_BY_EXCESS_SPEED):
     print(result_points)
     avg_pseudo_speed_ratio = [result_points[i][0][0] for i in range(len(result_points))]
     costs_for_Ns = [result_points[i][0][1] for i in range(len(result_points))]
@@ -78,6 +82,8 @@ def simuScoreNplanesNperplane(result_points, TEST_V, MIN_ELEVATION_DEG):
     # Saving data on external file (binary .ted)
     data = {
         "simu_version": TEST_V,
+        "MIN_ELEVATION_DEG": MIN_ELEVATION_DEG,
+        "VALUE_BY_EXCESS_SPEED": VALUE_BY_EXCESS_SPEED,
         "avg_pseudo_speed_ratio": avg_pseudo_speed_ratio,
         "costs_for_Ns": costs_for_Ns,
         "N_planes_f": N_planes_list,
