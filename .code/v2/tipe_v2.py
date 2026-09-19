@@ -27,6 +27,11 @@ FOCAL = 900
 LAT_STEP = int(120 * nres)
 LON_STEP = int(240 * nres)
 OMEGA_EARTH = (2 * pi/86164.0)
+ORBITAL_PARAM = {
+    "INCLINATION" : 87.9,
+    "RAAN" : None,
+    "H" : 1200,
+}
 MIN_ELEVATION_DEG = 45
 SEED = int(random.random() * 100000000)
 print(f'Seed: {SEED}')
@@ -199,10 +204,10 @@ class Main():
             for sat in data
         ]
 
-    def generateOneWebWalker(self, N_planes, N_per_plane, altitude=1200):
+    def generateOneWebWalker(self, N_planes, N_per_plane, altitude=ORBITAL_PARAM["H"]):
         N_PLANES = N_planes
         N_PER_PLANE = N_per_plane  # 12 * 49 = 588, + some more in reserve to arrive to 648
-        INCLINATION = 87.9
+        INCLINATION = ORBITAL_PARAM["INCLINATION"]
 
         satellites = []
         for p in range(N_PLANES):
@@ -406,7 +411,7 @@ class Main():
         costs_for_Ns = []
         result_mesure_point = []
         sa_point = []
-        N_planes = 8
+        N_planes = 12
         N_per_plane = 19
 
         print("Texture generation ...")
@@ -424,6 +429,7 @@ class Main():
         last_mouse = (0, 0)
         zoom_scale = 1.0            # Not used anymore
 
+        global ORBITAL_PARAM
         global RADIUS
         base_radius = RADIUS
 
@@ -437,6 +443,7 @@ class Main():
         if SHOW_MAP:
             self.tv.showTexture2D(texture, lats, lons, seed=SEED)
 
+        print(f'Constellation : ({N_planes}, {N_per_plane}), Orbital : {ORBITAL_PARAM}')
 
         while True:
             for event in pygame.event.get():
@@ -485,7 +492,7 @@ class Main():
                 self.render(screen, texture, sphere, rot, cx, cy, t)
                 self.drawSat(screen, satellites, rot, cx, cy, t)
 
-            if mesure_number % 250 == 0:
+            if mesure_number % 250 == 0 and ACTIVATE_ROTATION:
                 if mesure_number != 0:
                     # calcul of the ratio between pseudo latency and direct distance
                     valid_latencies = [i for i in latencies if np.isfinite(i)]
@@ -529,7 +536,7 @@ class Main():
                     pxS2, pyS2, pzS2 = self.pln.projection(sat_path[k + 1].reshape(1, 3), rot, cx, cy, RADIUS, FOCAL)
                     pygame.draw.line(screen, (255, 0, 255), (int(pxS1[0]), int(pyS1[0])), (int(pxS2[0]), int(pyS2[0])),4)
 
-            if mesure_number % 12500  == 0 and mesure_number != 0: #12500
+            if mesure_number % 250  == 0 and mesure_number != 0 and ACTIVATE_ROTATION and ACTIVATE_REFRESH: #12500
                 #avg_sat_coverage = np.average(sat_coverages)
                 avg_sat_coverage = min(sat_coverages)
                 valid_pseudo_speed_ratios = [r for r in pseudo_speed_ratios if np.isfinite(r)]
@@ -541,17 +548,21 @@ class Main():
                 sat_coverages = []
                 pseudo_speed_ratios = []
 
-                if N_planes == 15 and N_per_plane == 69:
+                if N_planes == 12 and N_per_plane == 69:
                     #simuScoreNplanes(avg_pseudo_speed_ratio, costs_for_Ns, N_planes, TEST_V)
                     simuScoreNplanesNperplane(result_mesure_point, TEST_V, MIN_ELEVATION_DEG, 8e-14)
                     ACTIVATE_ROTATION = False
+                    #mesure_number = 0
 
                 if N_per_plane == 69:
                     N_per_plane = 19
                     N_planes += 1
                 else :
                     N_per_plane += 10
-
+                
+                print(f'Config shifting : {N_planes}, {N_per_plane} \n',
+                     f'New Orbital param : {ORBITAL_PARAM} \n',
+                     "Reset constellation position")
                 satellites = self.generateOneWebWalker(N_planes, N_per_plane)
 
             if ACTIVATE_ROTATION:

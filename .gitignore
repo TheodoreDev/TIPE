@@ -8,3 +8,5 @@ templates
 config
 .replit
 .code/v2/map-result/map.png
+.code/v2/simu-saves/
+.code/v2/pseudo-latency-result/

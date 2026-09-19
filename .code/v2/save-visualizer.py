@@ -60,7 +60,7 @@ def readData(savename):
 
     plt.tight_layout()
     fig.subplots_adjust(right=0.85)
-    #plt.savefig(f"./pseudo-latency-result/coverage_Nplanes_Nperplane_v{TEST_V}.png", dpi=150, bbox_inches="tight")
+    plt.savefig(f"./pseudo-latency-result/coverage_Nplanes_Nperplane_v{TEST_V}.png", dpi=150, bbox_inches="tight")
     plt.show()
     plt.clf()
 
@@ -80,7 +80,7 @@ def readData(savename):
 
     plt.tight_layout()
     fig.subplots_adjust(right=0.85)
-    #plt.savefig(f"./pseudo-latency-result/score_Nplanes_Nperplane_v{TEST_V}.png", dpi=150, bbox_inches="tight")
+    plt.savefig(f"./pseudo-latency-result/score_Nplanes_Nperplane_v{TEST_V}.png", dpi=150, bbox_inches="tight")
     plt.show()
     plt.clf()
 
