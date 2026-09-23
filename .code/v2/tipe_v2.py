@@ -351,6 +351,9 @@ class Main():
 
         sat_path, sat_distances = Astar(positions, min_index_sa, adj_sat_mat, N_sat)
 
+        if len(sat_path) == 0:
+            return [], np.inf
+
         path = [start_point] + [satellites[i].position(t) for i in sat_path] + [stop_point]
         pseudo_latency += sat_distances[min_index_sa[1]]
         latency = ((float(pseudo_latency) * 6371) / 300000) + (len(path) * 0.005)
@@ -536,7 +539,7 @@ class Main():
                     pxS2, pyS2, pzS2 = self.pln.projection(sat_path[k + 1].reshape(1, 3), rot, cx, cy, RADIUS, FOCAL)
                     pygame.draw.line(screen, (255, 0, 255), (int(pxS1[0]), int(pyS1[0])), (int(pxS2[0]), int(pyS2[0])),4)
 
-            if mesure_number % 250  == 0 and mesure_number != 0 and ACTIVATE_ROTATION and ACTIVATE_REFRESH: #12500
+            if mesure_number % 12500  == 0 and mesure_number != 0 and ACTIVATE_ROTATION and ACTIVATE_REFRESH: #12500
                 #avg_sat_coverage = np.average(sat_coverages)
                 avg_sat_coverage = min(sat_coverages)
                 valid_pseudo_speed_ratios = [r for r in pseudo_speed_ratios if np.isfinite(r)]

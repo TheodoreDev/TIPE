@@ -69,3 +69,9 @@ def reading(filepath):
     file_obj = open(filepath, "rb")
     obj = pickle.load(file_obj)
     return(obj)
+
+def adding(filepath, obj, N):
+    file_obj = reading(filepath)
+    file_obj[N] = obj
+    pickle.dump(file_obj, open(filepath, "wb"))
+    return(file_obj)
