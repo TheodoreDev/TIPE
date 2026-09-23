@@ -27,11 +27,6 @@ FOCAL = 900
 LAT_STEP = int(120 * nres)
 LON_STEP = int(240 * nres)
 OMEGA_EARTH = (2 * pi/86164.0)
-ORBITAL_PARAM = {
-    "INCLINATION" : 87.9,
-    "RAAN" : None,
-    "H" : 1200,
-}
 MIN_ELEVATION_DEG = 45
 SEED = int(random.random() * 100000000)
 print(f'Seed: {SEED}')
@@ -204,10 +199,10 @@ class Main():
             for sat in data
         ]
 
-    def generateOneWebWalker(self, N_planes, N_per_plane, altitude=ORBITAL_PARAM["H"]):
+    def generateOneWebWalker(self, N_planes, N_per_plane, orbital_params):
         N_PLANES = N_planes
         N_PER_PLANE = N_per_plane  # 12 * 49 = 588, + some more in reserve to arrive to 648
-        INCLINATION = ORBITAL_PARAM["INCLINATION"]
+        INCLINATION = orbital_params["INCLINATION"]
 
         satellites = []
         for p in range(N_PLANES):
@@ -219,7 +214,7 @@ class Main():
                 satellites.append(Satellite(
                     inclinaison=INCLINATION,
                     raan=raan,
-                    altitude_km=altitude,
+                    altitude_km=orbital_params['H'],
                     phase=np.radians(phase)
                 ))
         return satellites
@@ -416,6 +411,11 @@ class Main():
         sa_point = []
         N_planes = 12
         N_per_plane = 19
+        orbital_params = {
+            "INCLINATION" : 87.9,
+            "RAAN" : None,
+            "H" : 1200,
+        }
 
         print("Texture generation ...")
         start = time.time()
@@ -432,11 +432,10 @@ class Main():
         last_mouse = (0, 0)
         zoom_scale = 1.0            # Not used anymore
 
-        global ORBITAL_PARAM
         global RADIUS
         base_radius = RADIUS
 
-        satellites = self.generateOneWebWalker(N_planes, N_per_plane)
+        satellites = self.generateOneWebWalker(N_planes, N_per_plane, orbital_params)
 
         ACTIVATE_REFRESH = True
         ACTIVATE_ROTATION = True
@@ -446,7 +445,7 @@ class Main():
         if SHOW_MAP:
             self.tv.showTexture2D(texture, lats, lons, seed=SEED)
 
-        print(f'Constellation : ({N_planes}, {N_per_plane}), Orbital : {ORBITAL_PARAM}')
+        print(f'Constellation : ({N_planes}, {N_per_plane}), Orbital : {orbital_params}')
 
         while True:
             for event in pygame.event.get():
@@ -564,9 +563,9 @@ class Main():
                     N_per_plane += 10
                 
                 print(f'Config shifting : {N_planes}, {N_per_plane} \n',
-                     f'New Orbital param : {ORBITAL_PARAM} \n',
+                     f'New Orbital param : {orbital_params} \n',
                      "Reset constellation position")
-                satellites = self.generateOneWebWalker(N_planes, N_per_plane)
+                satellites = self.generateOneWebWalker(N_planes, N_per_plane, orbital_params)
 
             if ACTIVATE_ROTATION:
                 t += (1 / FPS) * TIME_SCALE
