@@ -18,7 +18,7 @@ from simu import *
 # SETTINGS / CONST
 #-------------------------------
 nres = 1
-TEST_V = 6.2
+TEST_V = 7.0
 WIDTH, HEIGHT = 800, 800
 FPS = 60
 TIME_SCALE = 100
@@ -401,6 +401,7 @@ class Main():
         clock = pygame.time.Clock()
         sa_point_angle = []
         mesure_number = 0
+        N_hsimu = 0
         direct_distance = 0
         latencies = []
         pseudo_speed_ratios = []
@@ -409,12 +410,12 @@ class Main():
         costs_for_Ns = []
         result_mesure_point = []
         sa_point = []
-        N_planes = 12
-        N_per_plane = 19
+        N_planes = 12       # 8 to start
+        N_per_plane = 19    # 19 to start
         orbital_params = {
             "INCLINATION" : 87.9,
             "RAAN" : None,
-            "H" : 1200,
+            "H" : 1200,      #600 to start
         }
 
         print("Texture generation ...")
@@ -446,6 +447,7 @@ class Main():
             self.tv.showTexture2D(texture, lats, lons, seed=SEED)
 
         print(f'Constellation : ({N_planes}, {N_per_plane}), Orbital : {orbital_params}')
+        main_start = time.time()
 
         while True:
             for event in pygame.event.get():
@@ -550,11 +552,20 @@ class Main():
                 sat_coverages = []
                 pseudo_speed_ratios = []
 
-                if N_planes == 12 and N_per_plane == 69:
+                if N_planes == 15 and N_per_plane == 69:
                     #simuScoreNplanes(avg_pseudo_speed_ratio, costs_for_Ns, N_planes, TEST_V)
-                    simuScoreNplanesNperplane(result_mesure_point, TEST_V, MIN_ELEVATION_DEG, 8e-14)
-                    ACTIVATE_ROTATION = False
-                    #mesure_number = 0
+                    #simuScoreNplanesNperplane(result_mesure_point, TEST_V, MIN_ELEVATION_DEG, 8e-14)
+                    simuScoreNplanesNperplaneH(result_mesure_point, TEST_V, MIN_ELEVATION_DEG, 8e-14, N_hsimu)
+                    N_hsimu += 1
+
+                    if N_hsimu == 8:        # 8 simu : H 600 -> 2000
+                        main_end = time.time()
+                        print(f"[SUCCESS] simulation completed successfully (duration : {main_end - main_start}s)")
+                        ACTIVATE_ROTATION = False
+
+                    mesure_number = 0
+                    orbital_params["H"] += 200
+                    continue
 
                 if N_per_plane == 69:
                     N_per_plane = 19

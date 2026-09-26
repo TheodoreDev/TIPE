@@ -1,6 +1,7 @@
 from math import *
 import numpy as np
 import pickle
+import os
 
 # -------------------------------
 # UTILS FOR THE TIPE
@@ -75,3 +76,10 @@ def adding(filepath, obj, N):
     file_obj[N] = obj
     pickle.dump(file_obj, open(filepath, "wb"))
     return(file_obj)
+
+def check_files(dirpath, filename):
+    files = os.listdir(dirpath)
+    if filename in files:
+        return True
+    else :
+        return False

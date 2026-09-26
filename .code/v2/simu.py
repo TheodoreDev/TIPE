@@ -94,35 +94,36 @@ def simuScoreNplanesNperplane(result_points, TEST_V, MIN_ELEVATION_DEG, VALUE_BY
     writing(f"./simu-saves/simu_score_Nplanes_Nperplane_v{TEST_V}.ted", data)
     print("[SUCCESS] simulation saved successfully")
 
-def simuScoreNplanesNperplaneH(result_list, TEST_V, MIN_ELEVATION_DEG, VALUE_BY_EXCESS_SPEED, Hlist):
-    writing(f"./simu-saves/simu_score_Nplanes_Nperplane_h_v{TEST_V}.ted", {"simu_version": TEST_V})
-    print(result_list)
-    for i in range(len(result_list)):
-        result = result_list[i]
-        avg_pseudo_speed_ratio = [result[i][0][0] for i in range(len(result))]
-        costs_for_Ns = [result[i][0][1] for i in range(len(result))]
-        avg_sat_coverage = [result[i][3] for i in range(len(result))]
+def simuScoreNplanesNperplaneH(result_points, TEST_V, MIN_ELEVATION_DEG, VALUE_BY_EXCESS_SPEED, H, N_hsimu):
+    if check_files("./simu-saves/", f"simu_score_Nplanes_Nperplane_h_v{TEST_V}.ted"):
+        writing(f"./simu-saves/simu_score_Nplanes_Nperplane_h_v{TEST_V}.ted", {"simu_version": TEST_V})
+    #print(result_points)
 
-        excess_speed = [max(0.0, r - 1 / 300000) for r in avg_pseudo_speed_ratio]
+    avg_pseudo_speed_ratio = [result_points[i][0][0] for i in range(len(result_points))]
+    costs_for_Ns = [result_points[i][0][1] for i in range(len(result_points))]
+    avg_sat_coverage = [result_points[i][3] for i in range(len(result_points))]
 
-        result_scores = [
-            costs_for_Ns[i] + VALUE_BY_EXCESS_SPEED * excess_speed[i]
-            for i in range(len(result))
-        ]
-        N_planes_list = [result[i][1] for i in range(len(result))]
-        N_per_plane_list = [result[i][2] for i in range(len(result))]
+    excess_speed = [max(0.0, r - 1 / 300000) for r in avg_pseudo_speed_ratio]
 
-        data = {
-            "simu_version": TEST_V,
-            "MIN_ELEVATION_DEG": MIN_ELEVATION_DEG,
-            "VALUE_BY_EXCESS_SPEED": VALUE_BY_EXCESS_SPEED,
-            "H" : Hlist[i],
-            "avg_pseudo_speed_ratio": avg_pseudo_speed_ratio,
-            "costs_for_Ns": costs_for_Ns,
-            "N_planes_f": N_planes_list,
-            "N_per_plane_list": N_per_plane_list,
-            "raw_data": result,
-        }
+    result_scores = [
+        costs_for_Ns[i] + VALUE_BY_EXCESS_SPEED * excess_speed[i]
+        for i in range(len(result_points))
+    ]
+    N_planes_list = [result_points[i][1] for i in range(len(result_points))]
+    N_per_plane_list = [result_points[i][2] for i in range(len(result_points))]
 
-        adding(f"./simu-saves/simu_score_Nplanes_Nperplane_h_v{TEST_V}.ted", data, i)
-    print("[SUCCESS] simulation saved successfully")
+    # Saving data on external file (binary .ted)
+    data = {
+        "simu_version": TEST_V,
+        "MIN_ELEVATION_DEG": MIN_ELEVATION_DEG,
+        "VALUE_BY_EXCESS_SPEED": VALUE_BY_EXCESS_SPEED,
+        "H" : H,
+        "avg_pseudo_speed_ratio": avg_pseudo_speed_ratio,
+        "costs_for_Ns": costs_for_Ns,
+        "N_planes_f": N_planes_list,
+        "N_per_plane_list": N_per_plane_list,
+        "raw_data": result_points,
+    }
+
+    adding(f"./simu-saves/simu_score_Nplanes_Nperplane_h_v{TEST_V}.ted", data, N_hsimu)
+    print(f"[SUCCESS] simulation {N_hsimu} saved successfully, start processing next ...")

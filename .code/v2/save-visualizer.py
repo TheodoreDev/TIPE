@@ -23,6 +23,8 @@ def readData(savename):
     scores_list = []
     best_scores = []
 
+    global MIN_ELEVATION_DEG
+
     for i in range(len(save_raw)):
         result_points = save_raw[i]['result_points']
 
@@ -73,6 +75,8 @@ def readData(savename):
           f"score={result_scores_best[best_config_best_idx]:.3e}, coverage={avg_sat_coverage_best[best_config_best_idx]:.4f}")
     print(f"  ({len(valid_values_best)}/{len(result_points_best)} configuration passed the constraint)")
 
+    MIN_ELEVATION_DEG = save_raw[best_config_idx]['MIN_ELEVATION_DEG']
+
     return N_planes_list_best, N_per_plane_list_best, result_scores_best, avg_sat_coverage_best, TEST_V, best_config_best_idx, H_best
 
 def displaying(N_planes_list, N_per_plane_list, result_scores, avg_sat_coverage, TEST_V, best_idx, H):
@@ -88,7 +92,7 @@ def displaying(N_planes_list, N_per_plane_list, result_scores, avg_sat_coverage,
 
     plt.tight_layout()
     fig.subplots_adjust(right=0.85)
-    plt.savefig(f"./pseudo-latency-result/coverage_Nplanes_Nperplane_v{TEST_V}.png", dpi=150, bbox_inches="tight")
+    plt.savefig(f"./result_curves/coverage_Nplanes_Nperplane_v{TEST_V}.png", dpi=150, bbox_inches="tight")
     plt.show()
     plt.clf()
 
@@ -104,11 +108,11 @@ def displaying(N_planes_list, N_per_plane_list, result_scores, avg_sat_coverage,
     axes.set_ylabel('N per Planes')
     axes.set_zlabel('Score')
     plt.suptitle(f'Constellation Score with type : Walker', fontsize=16, fontweight='bold')
-    plt.title(f'MIN_ELEVATION_DEG = {MIN_ELEVATION_DEG}°', fontsize=10)
+    plt.title(f'MIN_ELEVATION_DEG = {MIN_ELEVATION_DEG}°, H = {H}', fontsize=10)
 
     plt.tight_layout()
     fig.subplots_adjust(right=0.85)
-    plt.savefig(f"./pseudo-latency-result/score_Nplanes_Nperplane_v{TEST_V}.png", dpi=150, bbox_inches="tight")
+    plt.savefig(f"./result_curves/score_Nplanes_Nperplane_v{TEST_V}.png", dpi=150, bbox_inches="tight")
     plt.show()
     plt.clf()
 
