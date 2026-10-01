@@ -18,6 +18,7 @@ MIN_ELEVATION_DEG = 45
 
 def readData(savename):
     save_raw = reading(f'./simu-saves/{savename}.ted')
+    print(save_raw)
     TEST_V = save_raw['simu_version']
     best_idx_list = []
     scores_list = []
@@ -25,8 +26,8 @@ def readData(savename):
 
     global MIN_ELEVATION_DEG
 
-    for i in range(len(save_raw)):
-        result_points = save_raw[i]['result_points']
+    for i in range(len(save_raw)-1):
+        result_points = save_raw[i]['raw_data']
 
         for point in result_points:
             print(point)
@@ -58,19 +59,19 @@ def readData(savename):
             best_idx_list.append(best_idx)
             best_scores.append(result_scores[best_idx])
 
-    best_config_idx = np.argmin(best_scores)
+    best_config_idx = int(np.argmin(best_scores))
     best_config_best_idx = best_idx_list[best_config_idx]
-    result_points_best = save_raw[best_config_idx]
+    result_points_best = save_raw[best_config_idx]['raw_data']
 
     result_scores_best = scores_list[best_config_idx]
     avg_sat_coverage_best = [result_points_best[i][3] for i in range(len(result_points_best))]
     N_planes_list_best = [result_points_best[i][1] for i in range(len(result_points_best))]
     N_per_plane_list_best = [result_points_best[i][2] for i in range(len(result_points_best))]
-    H_best = result_points_best["H"]
+    H_best = save_raw[best_config_idx]['H']
 
     valid_values_best = [i for i in range(len(result_points_best)) if avg_sat_coverage_best[i] >= COVERAGE_MIN]
 
-    print(f"\nBest config with coverage >= {COVERAGE_MIN} :")
+    print(f"\nBest config with coverage >= {COVERAGE_MIN} (over {len(save_raw)-1} simulations) :")
     print(f"  N_planes={N_planes_list_best[best_config_best_idx]}, N_per_plane={N_per_plane_list_best[best_config_best_idx]}, H={H_best}, "
           f"score={result_scores_best[best_config_best_idx]:.3e}, coverage={avg_sat_coverage_best[best_config_best_idx]:.4f}")
     print(f"  ({len(valid_values_best)}/{len(result_points_best)} configuration passed the constraint)")
@@ -82,7 +83,7 @@ def readData(savename):
 def displaying(N_planes_list, N_per_plane_list, result_scores, avg_sat_coverage, TEST_V, best_idx, H):
     fig = plt.figure(figsize=(8, 6))
     axes = fig.add_subplot(111, projection='3d')
-
+    print(avg_sat_coverage)
     axes.scatter(N_planes_list, N_per_plane_list, avg_sat_coverage, c=result_scores, cmap='viridis')
     axes.set_xlabel('N Planes')
     axes.set_ylabel('N per Planes')
@@ -92,7 +93,7 @@ def displaying(N_planes_list, N_per_plane_list, result_scores, avg_sat_coverage,
 
     plt.tight_layout()
     fig.subplots_adjust(right=0.85)
-    plt.savefig(f"./result_curves/coverage_Nplanes_Nperplane_v{TEST_V}.png", dpi=150, bbox_inches="tight")
+    plt.savefig(f"./result-curves/coverage_Nplanes_Nperplane_h_v{TEST_V}.png", dpi=150, bbox_inches="tight")
     plt.show()
     plt.clf()
 
@@ -112,9 +113,9 @@ def displaying(N_planes_list, N_per_plane_list, result_scores, avg_sat_coverage,
 
     plt.tight_layout()
     fig.subplots_adjust(right=0.85)
-    plt.savefig(f"./result_curves/score_Nplanes_Nperplane_v{TEST_V}.png", dpi=150, bbox_inches="tight")
+    plt.savefig(f"./result-curves/score_Nplanes_Nperplane_h_v{TEST_V}.png", dpi=150, bbox_inches="tight")
     plt.show()
     plt.clf()
 
-N_planes_list, N_per_plane_list, result_scores, avg_sat_coverage, TEST_V, best_idx, H = readData('simu_score_Nplanes_Nperplane_v6.2')
+N_planes_list, N_per_plane_list, result_scores, avg_sat_coverage, TEST_V, best_idx, H = readData('simu_score_Nplanes_Nperplane_h_v7.0')
 displaying(N_planes_list, N_per_plane_list, result_scores, avg_sat_coverage, TEST_V, best_idx, H)

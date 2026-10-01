@@ -36,7 +36,7 @@ def Astar(positions, min_index_sa, adj_sat_mat, N_sat):
 
         if current == min_index_sa[1]:
             break
-        if sat_distances[current] == np.inf:
+        if sat_scores[current] == np.inf:
             break
         visited.add(current)
 

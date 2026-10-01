@@ -95,7 +95,7 @@ def simuScoreNplanesNperplane(result_points, TEST_V, MIN_ELEVATION_DEG, VALUE_BY
     print("[SUCCESS] simulation saved successfully")
 
 def simuScoreNplanesNperplaneH(result_points, TEST_V, MIN_ELEVATION_DEG, VALUE_BY_EXCESS_SPEED, H, N_hsimu):
-    if check_files("./simu-saves/", f"simu_score_Nplanes_Nperplane_h_v{TEST_V}.ted"):
+    if not check_files("./simu-saves/", f"simu_score_Nplanes_Nperplane_h_v{TEST_V}.ted"):
         writing(f"./simu-saves/simu_score_Nplanes_Nperplane_h_v{TEST_V}.ted", {"simu_version": TEST_V})
     #print(result_points)
 
@@ -114,7 +114,6 @@ def simuScoreNplanesNperplaneH(result_points, TEST_V, MIN_ELEVATION_DEG, VALUE_B
 
     # Saving data on external file (binary .ted)
     data = {
-        "simu_version": TEST_V,
         "MIN_ELEVATION_DEG": MIN_ELEVATION_DEG,
         "VALUE_BY_EXCESS_SPEED": VALUE_BY_EXCESS_SPEED,
         "H" : H,

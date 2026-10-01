@@ -20,7 +20,7 @@ from simu import *
 nres = 1
 TEST_V = 7.0
 WIDTH, HEIGHT = 800, 800
-FPS = 60
+FPS = 240
 TIME_SCALE = 100
 RADIUS = 280
 FOCAL = 900
@@ -396,12 +396,11 @@ class Main():
 # -------------------------------
 
     def main(self):
-        screen = pygame.display.set_mode((WIDTH, HEIGHT))
-        pygame.display.set_caption('TIPE 3D VISUALIZATION')
+        screen = None
         clock = pygame.time.Clock()
         sa_point_angle = []
         mesure_number = 0
-        N_hsimu = 0
+        N_hsimu = 4         # 0 if sim from start
         direct_distance = 0
         latencies = []
         pseudo_speed_ratios = []
@@ -410,13 +409,28 @@ class Main():
         costs_for_Ns = []
         result_mesure_point = []
         sa_point = []
-        N_planes = 12       # 8 to start
+        N_planes = 8       # 8 to start
         N_per_plane = 19    # 19 to start
         orbital_params = {
             "INCLINATION" : 87.9,
             "RAAN" : None,
-            "H" : 1200,      #600 to start
+            "H" : 1400,      #600 to start
         }
+        ACTIVATE_DISPLAY = False
+        ACTIVATE_REFRESH = False
+
+        # Creation of needed folders
+        if not check_files('./', 'simu-saves'):
+            os.mkdir('./simu-saves')
+        if not check_files('./', 'result-curves'):
+            os.mkdir('./result-curves')
+        if not check_files('./', 'map-result'):
+            os.mkdir('./map-result')
+
+        if ACTIVATE_DISPLAY:
+            ACTIVATE_REFRESH = True
+            screen = pygame.display.set_mode((WIDTH, HEIGHT))
+            pygame.display.set_caption('TIPE 3D VISUALIZATION')
 
         print("Texture generation ...")
         start = time.time()
@@ -436,9 +450,9 @@ class Main():
         global RADIUS
         base_radius = RADIUS
 
+        # satellite generation
         satellites = self.generateOneWebWalker(N_planes, N_per_plane, orbital_params)
 
-        ACTIVATE_REFRESH = True
         ACTIVATE_ROTATION = True
         t = 0.0
 
@@ -468,7 +482,7 @@ class Main():
                         rot = self.pln.rotY(np.radians(180)) @ self.pln.rotX(np.radians(-90))
                     elif event.key == pygame.K_SPACE:
                         ACTIVATE_ROTATION = False if ACTIVATE_ROTATION else True
-                    elif event.key == pygame.K_a:
+                    elif event.key == pygame.K_a and ACTIVATE_DISPLAY:
                         ACTIVATE_REFRESH = False if ACTIVATE_REFRESH else True
 
                 elif event.type == pygame.MOUSEBUTTONDOWN:
@@ -533,14 +547,7 @@ class Main():
                 v = np.array([np.cos(lat_co) * np.cos(lon_co), np.cos(lat_co) * np.sin(lon_co), np.sin(lat_co)])
                 sa_point.append((rz @ v).tolist())
 
-            sat_path, latency = self.connectTwoPointsAst(sa_point, satellites, rot, cx, cy, t, N_planes * N_per_plane, MIN_ELEVATION_DEG)
-            if ACTIVATE_REFRESH:
-                for k in range(len(sat_path) - 1):
-                    pxS1, pyS1, pzS1 = self.pln.projection(sat_path[k].reshape(1, 3), rot, cx, cy, RADIUS, FOCAL)
-                    pxS2, pyS2, pzS2 = self.pln.projection(sat_path[k + 1].reshape(1, 3), rot, cx, cy, RADIUS, FOCAL)
-                    pygame.draw.line(screen, (255, 0, 255), (int(pxS1[0]), int(pyS1[0])), (int(pxS2[0]), int(pyS2[0])),4)
-
-            if mesure_number % 12500  == 0 and mesure_number != 0 and ACTIVATE_ROTATION and ACTIVATE_REFRESH: #12500
+            if mesure_number % 12500  == 0 and mesure_number != 0 and ACTIVATE_ROTATION: #12500
                 #avg_sat_coverage = np.average(sat_coverages)
                 avg_sat_coverage = min(sat_coverages)
                 valid_pseudo_speed_ratios = [r for r in pseudo_speed_ratios if np.isfinite(r)]
@@ -555,37 +562,46 @@ class Main():
                 if N_planes == 15 and N_per_plane == 69:
                     #simuScoreNplanes(avg_pseudo_speed_ratio, costs_for_Ns, N_planes, TEST_V)
                     #simuScoreNplanesNperplane(result_mesure_point, TEST_V, MIN_ELEVATION_DEG, 8e-14)
-                    simuScoreNplanesNperplaneH(result_mesure_point, TEST_V, MIN_ELEVATION_DEG, 8e-14, N_hsimu)
-                    N_hsimu += 1
+                    simuScoreNplanesNperplaneH(result_mesure_point, TEST_V, MIN_ELEVATION_DEG, 8e-14, orbital_params['H'], N_hsimu)
+                    result_mesure_point = []
 
                     if N_hsimu == 8:        # 8 simu : H 600 -> 2000
                         main_end = time.time()
                         print(f"[SUCCESS] simulation completed successfully (duration : {main_end - main_start}s)")
                         ACTIVATE_ROTATION = False
 
+                    N_hsimu += 1
                     mesure_number = 0
                     orbital_params["H"] += 200
-                    continue
 
                 if N_per_plane == 69:
                     N_per_plane = 19
-                    N_planes += 1
+                    N_planes = N_planes + 1 if mesure_number != 0 else 8
                 else :
                     N_per_plane += 10
                 
                 print(f'Config shifting : {N_planes}, {N_per_plane} \n',
-                     f'New Orbital param : {orbital_params} \n',
+                     f'Orbital param : {orbital_params} \n',
                      "Reset constellation position")
                 satellites = self.generateOneWebWalker(N_planes, N_per_plane, orbital_params)
 
-            if ACTIVATE_ROTATION:
-                t += (1 / FPS) * TIME_SCALE
 
+            sat_path, latency = self.connectTwoPointsAst(sa_point, satellites, rot, cx, cy, t, N_planes * N_per_plane, MIN_ELEVATION_DEG)
+            if ACTIVATE_REFRESH:
+                for k in range(len(sat_path) - 1):
+                    pxS1, pyS1, pzS1 = self.pln.projection(sat_path[k].reshape(1, 3), rot, cx, cy, RADIUS, FOCAL)
+                    pxS2, pyS2, pzS2 = self.pln.projection(sat_path[k + 1].reshape(1, 3), rot, cx, cy, RADIUS, FOCAL)
+                    pygame.draw.line(screen, (255, 0, 255), (int(pxS1[0]), int(pyS1[0])), (int(pxS2[0]), int(pyS2[0])), 4)
+
+            if ACTIVATE_ROTATION:
                 latencies.append(latency)
                 sat_coverages.append(self.coverageCalculation(satellites, t, MIN_ELEVATION_DEG))
-                mesure_number += 1
 
-            pygame.display.flip()
+                mesure_number += 1
+                t += (1 / 60) * TIME_SCALE
+
+            if ACTIVATE_REFRESH:
+                pygame.display.flip()
             clock.tick(FPS)
 
 if __name__ == "__main__":
