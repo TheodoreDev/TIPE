@@ -19,6 +19,7 @@ MIN_ELEVATION_DEG = 45
 def readData(savename):
     save_raw = reading(f'./simu-saves/{savename}.ted')
     print(save_raw)
+    print((len(save_raw)-1))
     TEST_V = save_raw['simu_version']
     best_idx_list = []
     scores_list = []
@@ -93,7 +94,7 @@ def displaying(N_planes_list, N_per_plane_list, result_scores, avg_sat_coverage,
 
     plt.tight_layout()
     fig.subplots_adjust(right=0.85)
-    plt.savefig(f"./result-curves/coverage_Nplanes_Nperplane_h_v{TEST_V}.png", dpi=150, bbox_inches="tight")
+    #plt.savefig(f"./result-curves/coverage_Nplanes_Nperplane_h_v{TEST_V}.png", dpi=150, bbox_inches="tight")
     plt.show()
     plt.clf()
 
@@ -113,7 +114,7 @@ def displaying(N_planes_list, N_per_plane_list, result_scores, avg_sat_coverage,
 
     plt.tight_layout()
     fig.subplots_adjust(right=0.85)
-    plt.savefig(f"./result-curves/score_Nplanes_Nperplane_h_v{TEST_V}.png", dpi=150, bbox_inches="tight")
+    #plt.savefig(f"./result-curves/score_Nplanes_Nperplane_h_v{TEST_V}.png", dpi=150, bbox_inches="tight")
     plt.show()
     plt.clf()
 
