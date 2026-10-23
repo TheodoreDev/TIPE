@@ -143,6 +143,8 @@ Each altitude is run as its own full `(N_planes, N_per_plane)` sweep and appende
 
 `save-visualizer.py` reloads that batch afterwards: for **each altitude**, it re-applies the hard coverage constraint and picks the best `(N_planes, N_per_plane)` under it, then compares those per-altitude winners against each other to report a single global optimum, effectively a nested optimization, altitude on the outside, plane configuration on the inside. Results are visualized as 3D scatter plots (score and coverage against `N_planes`/`N_per_plane`), titled with the winning altitude, with the global optimum marked explicitly.
 
+Furthermore, `save-visualizer.py` constructs a **Pareto front** for each tested altitude. It evaluates the trade-off between two conflicting objectives: minimizing the **inverse of speed** and minimizing the **cost**, under the strict constraint that **coverage must be $\ge 0.99$**. To visualize this trade-off effectively, the script applies a PCHIP interpolation to draw a smooth, continuous curve tracing the optimal configurations along the Pareto front.
+
 ---
 
 ## Confronting the model with reality: OneWeb

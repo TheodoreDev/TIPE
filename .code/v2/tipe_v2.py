@@ -510,6 +510,8 @@ class Main():
                 self.render(screen, texture, sphere, rot, cx, cy, t)
                 self.drawSat(screen, satellites, rot, cx, cy, t)
 
+            #TODO : data rate optimisation -> bigger data rate = bigger cost
+
             if mesure_number % 250 == 0 and ACTIVATE_ROTATION:
                 if mesure_number != 0:
                     # calcul of the ratio between pseudo latency and direct distance
