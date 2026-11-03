@@ -248,9 +248,7 @@ A literature search turned up closely related academic work worth citing for com
 
 ## Roadmap
 
-- [ ] **Three-parameter** simulation to see what altitude is the best according to the algorithm
 - [ ] **Resilience analysis** (Part 4): random vs. targeted node removal, algebraic connectivity (λ₂ of the graph Laplacian), max-flow / k-connectivity between regions (Ford–Fulkerson)
-- [ ] Worst-case (rather than time-averaged) coverage as the hard constraint, to test the OneWeb-gap hypothesis directly
 - [ ] Settle on a single, well-sourced elevation threshold (current runs have used several values across different tests : 25°, 40°, 45°, 55°, needs to be pinned down and justified once, not switched between)
 - [ ] Make the ISL laser range altitude-aware (or explicitly document it as a fixed hardware constant) inside the `(N_planes, N_per_plane, H)` joint sweep, rather than treating altitude's connectivity impact as a separate side-finding
 - [ ] Statistical rigor: uncertainty bars on sampled metrics, systematic sensitivity analysis on the monetized score's free constant

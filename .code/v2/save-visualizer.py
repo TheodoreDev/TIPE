@@ -35,8 +35,6 @@ def paretoFront(inv_speeds, cost, index):
 
 def readData(savename):
     save_raw = reading(f'./simu-saves/{savename}.ted')
-    print(save_raw)
-    print((len(save_raw)-1))
     TEST_V = save_raw['simu_version']
 
     h_keys = sorted(k for k in save_raw if k != 'simu_version')
@@ -208,13 +206,12 @@ def displayingParetoPerH(per_h, TEST_V):
     fig.legend(handles=handles, loc='lower center', ncol=4, fontsize=10)
     fig.suptitle(f'Constellation Pareto Front with type : Walker - MIN_ELEVATION_DEG = {MIN_ELEVATION_DEG}°', fontsize=16, fontweight='bold')
     fig.tight_layout()
-    fig.savefig(f"./result-curves/pareto_Nplanes_Nperplane_h_v{TEST_V}.png", dpi=150, bbox_inches="tight")
+    #fig.savefig(f"./result-curves/pareto_Nplanes_Nperplane_h_v{TEST_V}.png", dpi=150, bbox_inches="tight")
     plt.show()
 
 def displaying(N_planes_list, N_per_plane_list, result_scores, avg_sat_coverage, TEST_V, best_idx, H):
     fig = plt.figure(figsize=(8, 6))
     axes = fig.add_subplot(111, projection='3d')
-    print(avg_sat_coverage)
     axes.scatter(N_planes_list, N_per_plane_list, avg_sat_coverage, c=result_scores, cmap='viridis')
     axes.set_xlabel('N Planes')
     axes.set_ylabel('N per Planes')

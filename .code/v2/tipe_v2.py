@@ -602,6 +602,8 @@ class Main():
                 mesure_number += 1
                 t += (1 / 60) * TIME_SCALE
 
+            #TODO : resilience analysis -> effect of removing a satellite on a giving configuration
+
             if ACTIVATE_REFRESH:
                 pygame.display.flip()
             clock.tick(FPS)
