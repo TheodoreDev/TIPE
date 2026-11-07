@@ -252,6 +252,7 @@ class Main():
             pygame.draw.circle(screen, (255, 50, 50), (int(px[0]), int(py[0])), 4)
 
 
+    # Connecting the two chosen points
     def connectTwoPoints(self, sa_point, satellites, rot, cx, cy, t, screen):       # Not used anymore
         sat_path = []
         distances = []
@@ -355,6 +356,8 @@ class Main():
 
         return path, latency
 
+
+    # Calculating coverage and cost
     def coverageCalculation(self, satellites, t, min_elevation_deg, n_lat=30, n_lon=60): #min_elev_deg=27.6
         lats = np.linspace(-np.pi/2, np.pi/2, n_lat)
         lons = np.linspace(-np.pi, np.pi, n_lon, endpoint=False)
@@ -396,6 +399,7 @@ class Main():
 # -------------------------------
 
     def main(self):
+        # initial value for variables
         screen = None
         clock = pygame.time.Clock()
         sa_point_angle = []
@@ -464,13 +468,14 @@ class Main():
         main_start = time.time()
 
         while True:
+            # event handler (key, mouse, button)
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit(); sys.exit()
 
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_r:
-                        rot = self.pln.rotY(np.radians(-37)) @ self.pln.rotX(np.radians(-70))        # Reset de la rotation
+                        rot = self.pln.rotY(np.radians(-37)) @ self.pln.rotX(np.radians(-70))        # Reset of the rotation
                         RADIUS = base_radius
                     elif event.key == pygame.K_z:
                         rot = self.pln.rotY(np.radians(0)) @ self.pln.rotX(np.radians(0))
@@ -549,6 +554,7 @@ class Main():
                 v = np.array([np.cos(lat_co) * np.cos(lon_co), np.cos(lat_co) * np.sin(lon_co), np.sin(lat_co)])
                 sa_point.append((rz @ v).tolist())
 
+            # configuration shift (incrementing a variable)
             if mesure_number % 12500  == 0 and mesure_number != 0 and ACTIVATE_ROTATION: #12500
                 #avg_sat_coverage = np.average(sat_coverages)
                 avg_sat_coverage = min(sat_coverages)
@@ -561,12 +567,14 @@ class Main():
                 sat_coverages = []
                 pseudo_speed_ratios = []
 
+                # if current configuration is the last one for a given heigh
                 if N_planes == 15 and N_per_plane == 69:
                     #simuScoreNplanes(avg_pseudo_speed_ratio, costs_for_Ns, N_planes, TEST_V)
                     #simuScoreNplanesNperplane(result_mesure_point, TEST_V, MIN_ELEVATION_DEG, 8e-14)
                     simuScoreNplanesNperplaneH(result_mesure_point, TEST_V, MIN_ELEVATION_DEG, 8e-14, orbital_params['H'], N_hsimu)
                     result_mesure_point = []
 
+                    # if the total simulation is complete
                     if N_hsimu == 8:        # 8 simu : H 600 -> 2000
                         main_end = time.time()
                         print(f"[SUCCESS] simulation completed successfully (duration : {main_end - main_start}s)")
@@ -587,8 +595,9 @@ class Main():
                      "Reset constellation position")
                 satellites = self.generateOneWebWalker(N_planes, N_per_plane, orbital_params)
 
-
             sat_path, latency = self.connectTwoPointsAst(sa_point, satellites, rot, cx, cy, t, N_planes * N_per_plane, MIN_ELEVATION_DEG)
+
+            # Drawing the signal path between the two chosen points
             if ACTIVATE_REFRESH:
                 for k in range(len(sat_path) - 1):
                     pxS1, pyS1, pzS1 = self.pln.projection(sat_path[k].reshape(1, 3), rot, cx, cy, RADIUS, FOCAL)

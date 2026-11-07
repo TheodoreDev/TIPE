@@ -61,6 +61,7 @@ def Astar(positions, min_index_sa, adj_sat_mat, N_sat):
 
     return sat_path, sat_distances
 
+
 # File gestion function for data save
 def writing(filepath, obj):
     file_obj = open(filepath, "wb")
@@ -84,6 +85,8 @@ def check_files(dirpath, filename):
     else :
         return False
 
+
+# Interpolation functions
 def getLagrangeInterpolator(fx, fy, smooth, xstart, xend):
     def getLagrange(i, x):
         L = 1
