@@ -13,6 +13,7 @@ from planete import Perlin, Planet
 from satellites import Satellite
 from utils import *
 from simu import *
+from constellations import *
 
 #-------------------------------
 # SETTINGS / CONST
@@ -182,44 +183,6 @@ class Main():
             screen.blit(surf, (12, 12+i*20))
 
 # -------------------------------
-# LOAD/CREATE THE SATELLITE CONSTELLATION
-# -------------------------------
-
-    def loadConstellation(self, filepath, altitude=1200):
-        with open(filepath) as f:
-            data = json.load(f)
-        print(len(data))
-        return [
-            Satellite(
-                inclinaison=sat["inclination_deg"],
-                raan=sat["raan_deg"],
-                altitude_km=altitude,
-                phase=sat["phase_deg"],
-            )
-            for sat in data
-        ]
-
-    def generateOneWebWalker(self, N_planes, N_per_plane, orbital_params):
-        N_PLANES = N_planes
-        N_PER_PLANE = N_per_plane  # 12 * 49 = 588, + some more in reserve to arrive to 648
-        INCLINATION = orbital_params["INCLINATION"]
-
-        satellites = []
-        for p in range(N_PLANES):
-            raan = p * (180.0 / N_PLANES)  # Spaced plan of de 180°/12 = 15°
-            for s in range(N_PER_PLANE):
-                # Shift between two plans (F parametre of Walker)
-                walker_offset = (p * 360.0 / N_PER_PLANE) / N_PLANES
-                phase = s * (360.0 / N_PER_PLANE) + walker_offset + p*25
-                satellites.append(Satellite(
-                    inclinaison=INCLINATION,
-                    raan=raan,
-                    altitude_km=orbital_params['H'],
-                    phase=np.radians(phase)
-                ))
-        return satellites
-
-# -------------------------------
 # CHECK THE VISIBILITY OF SAT
 # -------------------------------
 
@@ -387,10 +350,10 @@ class Main():
 
         return np.sum(weight * is_covered) / np.sum(weight)
 
-    def satCostEff(self, avg_coverage, N_planes, n_per_plane, cost_per_sat=1e6):
+    def satCostEff(self, avg_coverage, N_sat, cost_per_sat=1e6):
         if avg_coverage <= 0 :
             return np.inf
-        total_cost = N_planes * n_per_plane * cost_per_sat + (ceil(N_planes*n_per_plane / 34)) * 100e6
+        total_cost = N_sat * cost_per_sat + (ceil(N_sat / 34)) * 100e6
         return total_cost / avg_coverage
 
 
@@ -420,7 +383,7 @@ class Main():
             "RAAN" : None,
             "H" : 1400,      #600 to start
         }
-        ACTIVATE_DISPLAY = False
+        ACTIVATE_DISPLAY = True
         ACTIVATE_REFRESH = False
 
         # Creation of needed folders
@@ -455,7 +418,7 @@ class Main():
         base_radius = RADIUS
 
         # satellite generation
-        satellites = self.generateOneWebWalker(N_planes, N_per_plane, orbital_params)
+        satellites = generateWalker(N_planes, N_per_plane, orbital_params)
 
         ACTIVATE_ROTATION = True
         t = 0.0
@@ -560,7 +523,7 @@ class Main():
                 avg_sat_coverage = min(sat_coverages)
                 valid_pseudo_speed_ratios = [r for r in pseudo_speed_ratios if np.isfinite(r)]
                 avg_pseudo_speed_ratio.append(np.average(valid_pseudo_speed_ratios))
-                cost_for_N = self.satCostEff(avg_sat_coverage, N_planes, N_per_plane)
+                cost_for_N = self.satCostEff(avg_sat_coverage, N_planes * N_per_plane)
                 costs_for_Ns.append(cost_for_N)
                 result_mesure_point.append([(np.average(valid_pseudo_speed_ratios), cost_for_N), N_planes, N_per_plane, avg_sat_coverage])
 
@@ -593,9 +556,9 @@ class Main():
                 print(f'Config shifting : {N_planes}, {N_per_plane} \n',
                      f'Orbital param : {orbital_params} \n',
                      "Reset constellation position")
-                satellites = self.generateOneWebWalker(N_planes, N_per_plane, orbital_params)
+                satellites = generateWalker(N_planes, N_per_plane, orbital_params)
 
-            sat_path, latency = self.connectTwoPointsAst(sa_point, satellites, rot, cx, cy, t, N_planes * N_per_plane, MIN_ELEVATION_DEG)
+            sat_path, latency = self.connectTwoPointsAst(sa_point, satellites, rot, cx, cy, t, len(satellites), MIN_ELEVATION_DEG)
 
             # Drawing the signal path between the two chosen points
             if ACTIVATE_REFRESH:
