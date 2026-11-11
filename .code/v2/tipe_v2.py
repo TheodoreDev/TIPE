@@ -367,7 +367,7 @@ class Main():
         clock = pygame.time.Clock()
         sa_point_angle = []
         mesure_number = 0
-        N_hsimu = 4         # 0 if sim from start
+        N_simu = 0         # 0 if sim from start
         direct_distance = 0
         latencies = []
         pseudo_speed_ratios = []
@@ -381,10 +381,12 @@ class Main():
         orbital_params = {
             "INCLINATION" : 87.9,
             "RAAN" : None,
-            "H" : 1400,      #600 to start
+            "H" : 600,      #600 to start
         }
         ACTIVATE_DISPLAY = True
         ACTIVATE_REFRESH = False
+
+        configuration_type = input("Configuration type (walker, random):")
 
         # Creation of needed folders
         if not check_files('./', 'simu-saves'):
@@ -418,7 +420,11 @@ class Main():
         base_radius = RADIUS
 
         # satellite generation
-        satellites = generateWalker(N_planes, N_per_plane, orbital_params)
+        match configuration_type:
+            case "walker":
+                satellites = generateWalker(N_planes, N_per_plane, orbital_params)
+            case "random":
+                satellites = generateRandom(SEED + mesure_number)
 
         ACTIVATE_ROTATION = True
         t = 0.0
@@ -504,11 +510,7 @@ class Main():
                         sa_point.append([np.cos(lat_co) * np.cos(lon_co), np.cos(lat_co) * np.sin(lon_co), np.sin(lat_co)])
 
                     # Direct distance between the 2 points on the globe (Haversine)
-                    delta_lat = sa_point_angle[1][0] - sa_point_angle[0][0]
-                    delta_lon = sa_point_angle[1][1] - sa_point_angle[0][1]
-                    a_inter = np.sin(delta_lat/2)**2 + np.cos(sa_point_angle[0][0])*np.cos(sa_point_angle[1][0])*np.sin(delta_lon/2)**2
-                    c_angle = 2 * atan2(sqrt(a_inter), sqrt(1-a_inter))
-                    direct_distance = 6371 * c_angle
+                    direct_distance = calculateDirectDistance(sa_point_angle)
 
             # earth rotation managing
             rz = self.pln.rotZ(OMEGA_EARTH * t)
@@ -530,33 +532,46 @@ class Main():
                 sat_coverages = []
                 pseudo_speed_ratios = []
 
-                # if current configuration is the last one for a given heigh
-                if N_planes == 15 and N_per_plane == 69:
-                    #simuScoreNplanes(avg_pseudo_speed_ratio, costs_for_Ns, N_planes, TEST_V)
-                    #simuScoreNplanesNperplane(result_mesure_point, TEST_V, MIN_ELEVATION_DEG, 8e-14)
-                    simuScoreNplanesNperplaneH(result_mesure_point, TEST_V, MIN_ELEVATION_DEG, 8e-14, orbital_params['H'], N_hsimu)
-                    result_mesure_point = []
+                match configuration_type:
+                    case "walker":
+                        # if current configuration is the last one for a given heigh
+                        if N_planes == 15 and N_per_plane == 69:
+                            #simuScoreNplanes(avg_pseudo_speed_ratio, costs_for_Ns, N_planes, TEST_V)
+                            #simuScoreNplanesNperplane(result_mesure_point, TEST_V, MIN_ELEVATION_DEG, 8e-14)
+                            simuScoreNplanesNperplaneH(result_mesure_point, TEST_V, MIN_ELEVATION_DEG, 8e-14, orbital_params['H'], N_simu, orbital_params)
+                            result_mesure_point = []
 
-                    # if the total simulation is complete
-                    if N_hsimu == 8:        # 8 simu : H 600 -> 2000
-                        main_end = time.time()
-                        print(f"[SUCCESS] simulation completed successfully (duration : {main_end - main_start}s)")
-                        ACTIVATE_ROTATION = False
+                            # if the total simulation is complete
+                            if N_simu == 8:        # 8 simu : H 600 -> 2000
+                                main_end = time.time()
+                                print(f"[SUCCESS] simulation completed successfully (duration : {main_end - main_start}s)")
+                                ACTIVATE_ROTATION = False
 
-                    N_hsimu += 1
-                    mesure_number = 0
-                    orbital_params["H"] += 200
+                            N_simu += 1
+                            mesure_number = 0
+                            orbital_params["H"] += 200
 
-                if N_per_plane == 69:
-                    N_per_plane = 19
-                    N_planes = N_planes + 1 if mesure_number != 0 else 8
-                else :
-                    N_per_plane += 10
-                
-                print(f'Config shifting : {N_planes}, {N_per_plane} \n',
-                     f'Orbital param : {orbital_params} \n',
-                     "Reset constellation position")
-                satellites = generateWalker(N_planes, N_per_plane, orbital_params)
+                        if N_per_plane == 69:
+                            N_per_plane = 19
+                            N_planes = N_planes + 1 if mesure_number != 0 else 8
+                        else :
+                            N_per_plane += 10
+
+                        print(f'Config shifting : {N_planes}, {N_per_plane} \n',
+                             f'Orbital param : {orbital_params} \n',
+                             "Reset constellation position")
+                        satellites = generateWalker(N_planes, N_per_plane, orbital_params)
+                        direct_distance = calculateDirectDistance(sa_point_angle)
+
+                    case "random":
+                        simuScoreNplanesNperplaneH(result_mesure_point, TEST_V, MIN_ELEVATION_DEG, 8e-14, orbital_params['H'], N_simu, orbital_params)
+                        N_simu += 1
+
+                        satellites = generateRandom(SEED + mesure_number*N_simu)
+                        mesure_number = 0
+                        direct_distance = calculateDirectDistance(sa_point_angle)
+
+                    # TODO : Making a script that test random config but try to improve the score each time
 
             sat_path, latency = self.connectTwoPointsAst(sa_point, satellites, rot, cx, cy, t, len(satellites), MIN_ELEVATION_DEG)
 

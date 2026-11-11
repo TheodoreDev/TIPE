@@ -154,3 +154,13 @@ def getPCHIPInterpolator(fx, fy, smooth):
         ys.append(fy[k]*h00 + h[k]*d[k]*h10 + fy[k+1]*h01 + h[k]*d[k+1]*h11)
 
     return xs, ys
+
+
+# Direct distance between the 2 points on the globe (Haversine)
+def calculateDirectDistance(sa_point_angle):
+    delta_lat = sa_point_angle[1][0] - sa_point_angle[0][0]
+    delta_lon = sa_point_angle[1][1] - sa_point_angle[0][1]
+    a_inter = np.sin(delta_lat / 2) ** 2 + np.cos(sa_point_angle[0][0]) * np.cos(sa_point_angle[1][0]) * np.sin(delta_lon / 2) ** 2
+    c_angle = 2 * atan2(sqrt(a_inter), sqrt(1 - a_inter))
+    direct_distance = 6371 * c_angle
+    return direct_distance

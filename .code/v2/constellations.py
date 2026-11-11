@@ -43,9 +43,18 @@ def generateWalker(N_planes, N_per_plane, orbital_params):
   return satellites
   
 
-  def generateRandom():
-    pass
+def generateRandom(seed=0):
+    T = random.randint(6, 900)
+    altitude = random.randint(700, 2400)
+    rng = np.random.default_rng(seed)
+    sats = []
+    for _ in range(T):
+        inc = np.degrees(np.arccos(rng.uniform(-1, 1)))
+        raan = rng.uniform(0, 360)
+        phase = rng.uniform(0, 2 * np.pi)
+        sats.append(Satellite(inc, raan, altitude, phase=phase))
+    return sats
   
 
-  def generateFromCatalog():
+def generateFromCatalog():
     pass

@@ -94,7 +94,7 @@ def simuScoreNplanesNperplane(result_points, TEST_V, MIN_ELEVATION_DEG, VALUE_BY
     writing(f"./simu-saves/simu_score_Nplanes_Nperplane_v{TEST_V}.ted", data)
     print("[SUCCESS] simulation saved successfully")
 
-def simuScoreNplanesNperplaneH(result_points, TEST_V, MIN_ELEVATION_DEG, VALUE_BY_EXCESS_SPEED, H, N_hsimu):
+def simuScoreNplanesNperplaneH(result_points, TEST_V, MIN_ELEVATION_DEG, VALUE_BY_EXCESS_SPEED, H, N_hsimu, orbital_params):
     if not check_files("./simu-saves/", f"simu_score_Nplanes_Nperplane_h_v{TEST_V}.ted"):
         writing(f"./simu-saves/simu_score_Nplanes_Nperplane_h_v{TEST_V}.ted", {"simu_version": TEST_V})
     #print(result_points)
@@ -112,6 +112,8 @@ def simuScoreNplanesNperplaneH(result_points, TEST_V, MIN_ELEVATION_DEG, VALUE_B
     N_planes_list = [result_points[i][1] for i in range(len(result_points))]
     N_per_plane_list = [result_points[i][2] for i in range(len(result_points))]
 
+    orbital_params_list = [orbital_params['INCLINATION'], orbital_params['RAAN']]
+
     # Saving data on external file (binary .ted)
     data = {
         "MIN_ELEVATION_DEG": MIN_ELEVATION_DEG,
@@ -121,6 +123,7 @@ def simuScoreNplanesNperplaneH(result_points, TEST_V, MIN_ELEVATION_DEG, VALUE_B
         "costs_for_Ns": costs_for_Ns,
         "N_planes_f": N_planes_list,
         "N_per_plane_list": N_per_plane_list,
+        "orbital_params": orbital_params_list,
         "raw_data": result_points,
     }
 
