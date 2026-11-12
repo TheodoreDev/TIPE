@@ -201,7 +201,7 @@ def displayingParetoPerH(per_h, TEST_V):
         Line2D([0], [0], marker='o', color='tab:orange', markersize=8, label='Pareto front (valid'),
         Line2D([0], [0], marker='*', color='w', markerfacecolor='red', markeredgecolor='black', markersize=15,
                label='best score'),
-        Line2D([0], [0], color='red', linestyle='--', lw=2, label='Lagrange Interpolation'),
+        Line2D([0], [0], color='red', linestyle='--', lw=2, label='PCHIP Interpolation'),
     ]
     fig.legend(handles=handles, loc='lower center', ncol=4, fontsize=10)
     fig.suptitle(f'Constellation Pareto Front with type : Walker - MIN_ELEVATION_DEG = {MIN_ELEVATION_DEG}°', fontsize=16, fontweight='bold')

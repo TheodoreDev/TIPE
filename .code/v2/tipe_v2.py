@@ -19,7 +19,7 @@ from constellations import *
 # SETTINGS / CONST
 #-------------------------------
 nres = 1
-TEST_V = 7.0
+TEST_V = 8.0
 WIDTH, HEIGHT = 800, 800
 FPS = 240
 TIME_SCALE = 100
@@ -425,6 +425,8 @@ class Main():
                 satellites = generateWalker(N_planes, N_per_plane, orbital_params)
             case "random":
                 satellites = generateRandom(SEED + mesure_number)
+            case "random-walker":
+                satellites = generateRandomWalker(SEED + mesure_number)
 
         ACTIVATE_ROTATION = True
         t = 0.0
@@ -538,7 +540,7 @@ class Main():
                         if N_planes == 15 and N_per_plane == 69:
                             #simuScoreNplanes(avg_pseudo_speed_ratio, costs_for_Ns, N_planes, TEST_V)
                             #simuScoreNplanesNperplane(result_mesure_point, TEST_V, MIN_ELEVATION_DEG, 8e-14)
-                            simuScoreNplanesNperplaneH(result_mesure_point, TEST_V, MIN_ELEVATION_DEG, 8e-14, orbital_params['H'], N_simu, orbital_params)
+                            simuScoreNplanesNperplaneH(result_mesure_point, TEST_V, MIN_ELEVATION_DEG, 8e-14, orbital_params['H'], N_simu, orbital_params, configuration_type)
                             result_mesure_point = []
 
                             # if the total simulation is complete
@@ -563,8 +565,8 @@ class Main():
                         satellites = generateWalker(N_planes, N_per_plane, orbital_params)
                         direct_distance = calculateDirectDistance(sa_point_angle)
 
-                    case "random":
-                        simuScoreNplanesNperplaneH(result_mesure_point, TEST_V, MIN_ELEVATION_DEG, 8e-14, orbital_params['H'], N_simu, orbital_params)
+                    case "random": # Not usable yet
+                        simuScoreNplanesNperplaneH(result_mesure_point, TEST_V, MIN_ELEVATION_DEG, 8e-14, orbital_params['H'], N_simu, orbital_params, configuration_type)
                         N_simu += 1
 
                         satellites = generateRandom(SEED + mesure_number*N_simu)
@@ -573,6 +575,20 @@ class Main():
 
                     # TODO : Making a script that test random config but try to improve the score each time
 
+                    case "random-walker":
+                        simuScoreNplanesNperplaneH(result_mesure_point, TEST_V, MIN_ELEVATION_DEG, 8e-14, orbital_params['H'], N_simu, orbital_params, configuration_type)
+                        result_mesure_point = []
+
+                        if N_simu == 8:        # 8 simu
+                            main_end = time.time()
+                            print(f"[SUCCESS] simulation completed successfully (duration : {main_end - main_start}s)")
+                            ACTIVATE_ROTATION = False
+                        N_simu += 1
+
+                        satellites = generateRandomWalker(SEED + mesure_number*N_simu)
+                        mesure_number = 0
+                        direct_distance = calculateDirectDistance(sa_point_angle)
+                
             sat_path, latency = self.connectTwoPointsAst(sa_point, satellites, rot, cx, cy, t, len(satellites), MIN_ELEVATION_DEG)
 
             # Drawing the signal path between the two chosen points

@@ -94,9 +94,9 @@ def simuScoreNplanesNperplane(result_points, TEST_V, MIN_ELEVATION_DEG, VALUE_BY
     writing(f"./simu-saves/simu_score_Nplanes_Nperplane_v{TEST_V}.ted", data)
     print("[SUCCESS] simulation saved successfully")
 
-def simuScoreNplanesNperplaneH(result_points, TEST_V, MIN_ELEVATION_DEG, VALUE_BY_EXCESS_SPEED, H, N_hsimu, orbital_params):
+def simuScoreNplanesNperplaneH(result_points, TEST_V, MIN_ELEVATION_DEG, VALUE_BY_EXCESS_SPEED, H, N_hsimu, orbital_params, config_type):
     if not check_files("./simu-saves/", f"simu_score_Nplanes_Nperplane_h_v{TEST_V}.ted"):
-        writing(f"./simu-saves/simu_score_Nplanes_Nperplane_h_v{TEST_V}.ted", {"simu_version": TEST_V})
+        writing(f"./simu-saves/simu_score_Nplanes_Nperplane_h_v{TEST_V}.ted", {"simu_version": TEST_V, "type" : config_type})
     #print(result_points)
 
     avg_pseudo_speed_ratio = [result_points[i][0][0] for i in range(len(result_points))]
