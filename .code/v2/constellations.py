@@ -53,7 +53,7 @@ def generateRandom(seed=0):
         raan = rng.uniform(0, 360)
         phase = rng.uniform(0, 2 * np.pi)
         sats.append(Satellite(inc, raan, altitude, phase=phase))
-    return sats
+    return sats, altitude
 
 
 def generateRandomWalker(seed):
@@ -64,11 +64,11 @@ def generateRandomWalker(seed):
     N_planes = random.randint(3, 20)
     N_per_plane = T // N_planes
     orbital_params = {
-        "INCLIANTION" : np.degrees(np.arccos(rng.uniform(-1, 1))),
+        "INCLINATION" : np.degrees(np.arccos(rng.uniform(-1, 1))),
         "RAAN" : 0,
         "H" : altitude
     }
-    return generateWalker(N_planes, N_per_plane, orbital_params)
+    return generateWalker(N_planes, N_per_plane, orbital_params), altitude, N_planes, N_per_plane, orbital_params
     
 
 def generateFromCatalog():

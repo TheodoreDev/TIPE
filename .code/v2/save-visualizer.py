@@ -209,6 +209,79 @@ def displayingParetoPerH(per_h, TEST_V):
     #fig.savefig(f"./result-curves/pareto_Nplanes_Nperplane_h_v{TEST_V}.png", dpi=150, bbox_inches="tight")
     plt.show()
 
+
+def readDataRW(savename):
+    save_raw = reading(f'./simu-saves/{savename}.ted')
+    TEST_V = save_raw['simu_version']
+
+    pareto_point_list = []
+
+    global MIN_ELEVATION_DEG
+    MIN_ELEVATION_DEG = save_raw[1]['MIN_ELEVATION_DEG']
+
+    avg_pseudo_speed_ratio = save_raw[1]['avg_pseudo_speed_ratio']
+    costs_for_Ns = save_raw[1]['costs_for_Ns']
+    avg_sat_coverage = save_raw[1]['avg_sat_coverage']
+    N_planes_list = save_raw[1]['N_planes_f']
+    N_per_plane_list = save_raw[1]['N_per_plane_list']
+    altitude_list = save_raw[1]['altitude_list']
+
+    n_configs = len(avg_pseudo_speed_ratio)
+    print(f"{n_configs} random-walker configuration(s) in {savename}")
+
+    excess_speed = [max(0.0, r - 1 / 300000) for r in avg_pseudo_speed_ratio]
+
+    result_scores = [
+        scoreCalc(costs_for_Ns[j], avg_pseudo_speed_ratio[j])
+        for j in range(n_configs)
+    ]
+
+    valid_values = [i for i in range(n_configs)
+                    if avg_sat_coverage[i] >= COVERAGE_MIN and np.isfinite(result_scores[i])]
+
+    if len(valid_values) == 0:
+        print(f"[WARNING] No configuration with COUVERTURE_MIN={COVERAGE_MIN}")
+        best_idx = None
+        H_best = None
+    else:
+        best_idx = min(valid_values, key=lambda i: result_scores[i])
+        H_best = altitude_list[best_idx]
+        print(f"\nBest config with coverage >= {COVERAGE_MIN} (over {n_configs} simulations) :")
+        print(
+            f"  Config #{best_idx} : N_planes={N_planes_list[best_idx]}, N_per_plane={N_per_plane_list[best_idx]}, H={H_best}, "
+            f"score={result_scores[best_idx]:.3e}, coverage={avg_sat_coverage[best_idx]:.4f}")
+        print(f"  ({len(valid_values)}/{n_configs} configurations passed the constraint)")
+
+    print(
+        f"\n{'#':>4} {'H':>7} {'N_planes':>9} {'N_per_plane':>12} {'cost (M)':>10} {'inv speed':>11} {'coverage':>9} {'score':>10} {'status':>10}")
+    for j in range(n_configs):
+        is_valid = j in valid_values
+        status = "BEST *" if j == best_idx else ("valid" if is_valid else "excluded")
+
+        cost_str = f"{costs_for_Ns[j] / 1e6:>10.1f}" if np.isfinite(costs_for_Ns[j]) else f"{'inf':>10}"
+        speed_str = f"{avg_pseudo_speed_ratio[j]:>11.3e}" if np.isfinite(avg_pseudo_speed_ratio[j]) else f"{'inf':>11}"
+        score_str = f"{result_scores[j]:>10.3e}" if np.isfinite(result_scores[j]) else f"{'inf':>10}"
+
+        print(f"{j:>4} {altitude_list[j]:>7} {N_planes_list[j]:>9} {N_per_plane_list[j]:>12} "
+              f"{cost_str} {speed_str} {avg_sat_coverage[j]:>9.4f} {score_str} {status:>10}")
+
+    pareto_point_list.append({
+        'H': altitude_list,
+        'inv_speed': avg_pseudo_speed_ratio, 'cost': costs_for_Ns, 'cov': avg_sat_coverage,
+        'score': result_scores, 'N_planes': N_planes_list, 'N_per_plane': N_per_plane_list,
+        'valid': valid_values, 'best': best_idx,
+    })
+
+    displayingParetoRW(pareto_point_list, TEST_V)
+
+    return N_planes_list, N_per_plane_list, result_scores, avg_sat_coverage, TEST_V, best_idx, H_best
+
+
+def displayingParetoRW(pareto_point_list, TEST_V):
+    pass
+    # TODO : make the pareto front displaying function for random walker config
+
+
 def displaying(N_planes_list, N_per_plane_list, result_scores, avg_sat_coverage, TEST_V, best_idx, H):
     fig = plt.figure(figsize=(8, 6))
     axes = fig.add_subplot(111, projection='3d')
@@ -245,5 +318,20 @@ def displaying(N_planes_list, N_per_plane_list, result_scores, avg_sat_coverage,
     plt.show()
     plt.clf()
 
-N_planes_list, N_per_plane_list, result_scores, avg_sat_coverage, TEST_V, best_idx, H = readData('simu_score_Nplanes_Nperplane_h_v7.0')
-displaying(N_planes_list, N_per_plane_list, result_scores, avg_sat_coverage, TEST_V, best_idx, H)
+def saveRooter(savename):
+    save_raw = reading(f'./simu-saves/{savename}.ted')
+    try :
+        simulation_type = save_raw['type']
+    except :
+        simulation_type = 'walker'
+
+    N_planes_list, N_per_plane_list, result_scores, avg_sat_coverage, TEST_V, best_idx, H = None, None, None, None, None, None, None
+    match simulation_type:
+        case 'walker':
+            N_planes_list, N_per_plane_list, result_scores, avg_sat_coverage, TEST_V, best_idx, H = readData(savename)
+        case 'random-walker':
+            N_planes_list, N_per_plane_list, result_scores, avg_sat_coverage, TEST_V, best_idx, H = readDataRW(savename)
+    displaying(N_planes_list, N_per_plane_list, result_scores, avg_sat_coverage, TEST_V, best_idx, H)
+
+
+saveRooter('simu_score_Nplanes_Nperplane_h_v7.0')

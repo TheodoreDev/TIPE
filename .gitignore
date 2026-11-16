@@ -10,3 +10,4 @@ config
 .replit
 .code/v2/map-result/map.png
 .code/test-file/function_sandbox.ipynb
+.code/test-file/test.py

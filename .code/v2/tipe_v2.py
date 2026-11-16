@@ -376,17 +376,19 @@ class Main():
         costs_for_Ns = []
         result_mesure_point = []
         sa_point = []
-        N_planes = 8       # 8 to start
-        N_per_plane = 19    # 19 to start
+        altitude = 0
+        N_planes = 8  # 8 to start
+        N_per_plane = 19  # 19 to start
         orbital_params = {
-            "INCLINATION" : 87.9,
-            "RAAN" : None,
-            "H" : 600,      #600 to start
+            "INCLINATION": 87.9,
+            "RAAN": None,
+            "H": 600,  # 600 to start
         }
+
         ACTIVATE_DISPLAY = True
         ACTIVATE_REFRESH = False
 
-        configuration_type = input("Configuration type (walker, random):")
+        configuration_type = input("Configuration type (walker, random, random-walker):\n/")
 
         # Creation of needed folders
         if not check_files('./', 'simu-saves'):
@@ -422,11 +424,18 @@ class Main():
         # satellite generation
         match configuration_type:
             case "walker":
+                N_planes = 8  # 8 to start
+                N_per_plane = 19  # 19 to start
+                orbital_params = {
+                    "INCLINATION": 87.9,
+                    "RAAN": None,
+                    "H": 600,  # 600 to start
+                }
                 satellites = generateWalker(N_planes, N_per_plane, orbital_params)
             case "random":
-                satellites = generateRandom(SEED + mesure_number)
+                satellites, altitude = generateRandom(SEED + mesure_number)
             case "random-walker":
-                satellites = generateRandomWalker(SEED + mesure_number)
+                satellites, altitude, N_planes, N_per_plane, orbital_params = generateRandomWalker(SEED + mesure_number)
 
         ACTIVATE_ROTATION = True
         t = 0.0
@@ -529,7 +538,9 @@ class Main():
                 avg_pseudo_speed_ratio.append(np.average(valid_pseudo_speed_ratios))
                 cost_for_N = self.satCostEff(avg_sat_coverage, N_planes * N_per_plane)
                 costs_for_Ns.append(cost_for_N)
-                result_mesure_point.append([(np.average(valid_pseudo_speed_ratios), cost_for_N), N_planes, N_per_plane, avg_sat_coverage])
+                if configuration_type == "walker":
+                    altitude = orbital_params['H']
+                result_mesure_point.append([(np.average(valid_pseudo_speed_ratios), cost_for_N), N_planes, N_per_plane, avg_sat_coverage, altitude])
 
                 sat_coverages = []
                 pseudo_speed_ratios = []
@@ -569,23 +580,22 @@ class Main():
                         simuScoreNplanesNperplaneH(result_mesure_point, TEST_V, MIN_ELEVATION_DEG, 8e-14, orbital_params['H'], N_simu, orbital_params, configuration_type)
                         N_simu += 1
 
-                        satellites = generateRandom(SEED + mesure_number*N_simu)
+                        satellites, altitude = generateRandom(SEED + mesure_number*N_simu)
                         mesure_number = 0
                         direct_distance = calculateDirectDistance(sa_point_angle)
 
                     # TODO : Making a script that test random config but try to improve the score each time
 
                     case "random-walker":
-                        simuScoreNplanesNperplaneH(result_mesure_point, TEST_V, MIN_ELEVATION_DEG, 8e-14, orbital_params['H'], N_simu, orbital_params, configuration_type)
-                        result_mesure_point = []
-
-                        if N_simu == 8:        # 8 simu
+                        if N_simu == 50:        # 20 simu
+                            simuScoreNplanesNperplaneHRandomW(result_mesure_point, TEST_V, MIN_ELEVATION_DEG, 8e-14, configuration_type)
+                            result_mesure_point = []
                             main_end = time.time()
                             print(f"[SUCCESS] simulation completed successfully (duration : {main_end - main_start}s)")
                             ACTIVATE_ROTATION = False
                         N_simu += 1
 
-                        satellites = generateRandomWalker(SEED + mesure_number*N_simu)
+                        satellites, altitude, N_planes, N_per_plane, orbital_params = generateRandomWalker(SEED + mesure_number*N_simu)
                         mesure_number = 0
                         direct_distance = calculateDirectDistance(sa_point_angle)
                 
