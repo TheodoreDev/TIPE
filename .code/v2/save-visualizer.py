@@ -33,7 +33,7 @@ def paretoFront(inv_speeds, cost, index):
             best_inv_speed = inv_speeds[i]
     return front
 
-def readData(savename):
+def readDataW(savename):
     save_raw = reading(f'./simu-saves/{savename}.ted')
     TEST_V = save_raw['simu_version']
 
@@ -121,93 +121,11 @@ def readData(savename):
             print(f"{d['H']:>7} {d['N_planes'][b]:>9} {d['N_per_plane'][b]:>12} {d['cost'][b] / 1e6:>10.1f} "
                   f"{d['inv_speed'][b]:>11.3e} {d['cov'][b]:>9.4f} {d['score'][b]:>10.3e} {counts:>12}")
 
-    displayingParetoPerH(per_h, TEST_V)
+    displayingParetoPerH(per_h, TEST_V, 'walker')
 
     MIN_ELEVATION_DEG = save_raw[best_config_idx]['MIN_ELEVATION_DEG']
 
     return N_planes_list_best, N_per_plane_list_best, result_scores_best, avg_sat_coverage_best, TEST_V, best_config_best_idx, H_best
-
-def displayingParetoPerH(per_h, TEST_V):
-    n = len(per_h)
-    n_col = ceil(sqrt(n))
-    n_row = int(ceil(n / n_col))
-    fig, axes = plt.subplots(n_row, n_col, figsize=(5.5*n_col, 4.5*n_row), sharex=True, sharey=True, squeeze=False)
-    axes = axes.ravel()
-
-    scored = [(i, d['score'][d['best']]) for i, d in enumerate(per_h) if d['best'] is not None]
-    global_best = min(scored, key=lambda t: t[1])[0] if scored else None
-
-    for i, (axe, d) in enumerate(zip(axes, per_h)):
-        finite_values = [i for i in range(len(d['cost'])) if np.isfinite(d['inv_speed'][i]) and np.isfinite(d['cost'][i])]
-        excluded = [i for i in finite_values if d['cov'][i] < COVERAGE_MIN]
-        front = paretoFront(d['inv_speed'], d['cost'], d['valid'])
-        in_front = set(front)
-        others = [i for i in d['valid'] if i not in in_front]
-
-        def xy(index):
-            return [d['cost'][i] / 1e6 for i in index], [d['inv_speed'][i] for i in index]
-
-        axe.scatter(*xy(excluded), c='lightgray', s=18, zorder=1)
-        axe.scatter(*xy(others), c='tab:blue', s=28, alpha=0.5, zorder=2)
-        if front:
-            fx, fy = xy(front)
-            axe.step(fx, fy, where='post', color='tab:orange', lw=1.5, zorder=3)
-            axe.scatter(fx, fy, c='tab:orange', s=40, zorder=4)
-
-        b = d['best']
-        if b is not None :
-            axe.scatter([d['cost'][b] / 1e6], [d['inv_speed'][b]], marker='*', s=260, c='red', edgecolor='black', zorder=5)
-            axe.annotate(f"({d['N_planes'][b]}, {d['N_per_plane'][b]})", xy=(d['cost'][b] / 1e6, d['inv_speed'][b]), xytext=(10, 10),
-                         textcoords='offset points', fontsize=9, fontweight='bold', zorder=5)
-        else :
-            axe.text(0.5, 0.5, f'no configuration with\ncoverage >= {COVERAGE_MIN}', transform=axe.transAxes, ha='center', va='center', color='red')
-
-        title = f"H = {d['H']} ({len(d['valid'])}/{len(finite_values)} valid)"
-        if i == global_best:
-            axe.set_title('* ' + title + ' - global best', fontsize=10, fontweight='bold', color='black')
-        else:
-            axe.set_title(title, fontsize=10, color='black')
-        axe.grid(alpha=0.3)
-
-    for axe, d in zip(axes, per_h):
-        front = paretoFront(d['inv_speed'], d['cost'], d['valid'])
-
-        def xy(index):
-            return [d['cost'][i] / 1e6 for i in index], [d['inv_speed'][i] for i in index]
-
-        if front:
-            fx, fy = xy(front)
-            axe.autoscale(False)
-
-            fx, fy = np.array(fx), np.array(fy)
-            fx_u, index_u = np.unique(fx, return_index=True)
-            fy_u = fy[index_u]
-
-            if len(fx_u) > 1:
-                il_x, il_y = getPCHIPInterpolator(fx_u, fy_u, 100)
-                axe.plot(il_x, il_y, color='red', linestyle='--', lw=2.5, zorder=5, scalex=False, scaley=False)
-
-    for axe in axes[n:]:
-        axe.axis('off')
-    for axe in axes[:n]:
-        axe.set_xlabel('Cost')
-        axe.set_ylabel('Inverse Speed')
-
-    handles = [
-        Line2D([0], [0], marker='o', color='w', markerfacecolor='lightgray', markersize=8,
-               label=f'coverage < {COVERAGE_MIN} (excluded)'),
-        Line2D([0], [0], marker='o', color='w', markerfacecolor='tab:blue', markersize=8,
-               label='valid, dominated'),
-        Line2D([0], [0], marker='o', color='tab:orange', markersize=8, label='Pareto front (valid'),
-        Line2D([0], [0], marker='*', color='w', markerfacecolor='red', markeredgecolor='black', markersize=15,
-               label='best score'),
-        Line2D([0], [0], color='red', linestyle='--', lw=2, label='PCHIP Interpolation'),
-    ]
-    fig.legend(handles=handles, loc='lower center', ncol=4, fontsize=10)
-    fig.suptitle(f'Constellation Pareto Front with type : Walker - MIN_ELEVATION_DEG = {MIN_ELEVATION_DEG}°', fontsize=16, fontweight='bold')
-    fig.tight_layout()
-    #fig.savefig(f"./result-curves/pareto_Nplanes_Nperplane_h_v{TEST_V}.png", dpi=150, bbox_inches="tight")
-    plt.show()
 
 
 def readDataRW(savename):
@@ -272,9 +190,101 @@ def readDataRW(savename):
         'valid': valid_values, 'best': best_idx,
     })
 
-    displayingParetoRW(pareto_point_list, TEST_V)
+    displayingParetoPerH(pareto_point_list, TEST_V, 'random-walker')
 
     return N_planes_list, N_per_plane_list, result_scores, avg_sat_coverage, TEST_V, best_idx, H_best
+
+
+def displayingParetoPerH(per_h, TEST_V, configuration_type):
+    n = len(per_h)
+    n_col = ceil(sqrt(n))
+    n_row = int(ceil(n / n_col))
+    fig, axes = plt.subplots(n_row, n_col, figsize=(5.5*n_col, 4.5*n_row), sharex=True, sharey=True, squeeze=False)
+    axes = axes.ravel()
+
+    scored = [(i, d['score'][d['best']]) for i, d in enumerate(per_h) if d['best'] is not None]
+    global_best = min(scored, key=lambda t: t[1])[0] if scored else None
+
+    for i, (axe, d) in enumerate(zip(axes, per_h)):
+        finite_values = [i for i in range(len(d['cost'])) if np.isfinite(d['inv_speed'][i]) and np.isfinite(d['cost'][i])]
+        excluded = [i for i in finite_values if d['cov'][i] < COVERAGE_MIN]
+        front = paretoFront(d['inv_speed'], d['cost'], d['valid'])
+        in_front = set(front)
+        others = [i for i in d['valid'] if i not in in_front]
+
+        def xy(index):
+            return [d['cost'][i] / 1e6 for i in index], [d['inv_speed'][i] for i in index]
+
+        axe.scatter(*xy(excluded), c='lightgray', s=18, zorder=1)
+        axe.scatter(*xy(others), c='tab:blue', s=28, alpha=0.5, zorder=2)
+        if front:
+            fx, fy = xy(front)
+            axe.step(fx, fy, where='post', color='tab:orange', lw=1.5, zorder=3)
+            axe.scatter(fx, fy, c='tab:orange', s=40, zorder=4)
+
+        b = d['best']
+        if b is not None :
+            axe.scatter([d['cost'][b] / 1e6], [d['inv_speed'][b]], marker='*', s=260, c='red', edgecolor='black', zorder=5)
+            if configuration_type.lower() == 'walker':
+                axe.annotate(f"({d['N_planes'][b]}, {d['N_per_plane'][b]})", xy=(d['cost'][b] / 1e6, d['inv_speed'][b]), xytext=(10, 10),
+                             textcoords='offset points', fontsize=9, fontweight='bold', zorder=5)
+            elif configuration_type.lower() == 'random-walker':
+                axe.annotate(f"({d['N_planes'][b]}, {d['N_per_plane'][b]}, {d['H'][b]})", xy=(d['cost'][b] / 1e6, d['inv_speed'][b]), xytext=(10, 10),
+                             textcoords='offset points', fontsize=9, fontweight='bold', zorder=5)
+        else :
+            axe.text(0.5, 0.5, f'no configuration with\ncoverage >= {COVERAGE_MIN}', transform=axe.transAxes, ha='center', va='center', color='red')
+
+        if configuration_type.lower() == 'walker':
+            title = f"H = {d['H']} ({len(d['valid'])}/{len(finite_values)} valid)"
+            if i == global_best:
+                axe.set_title('* ' + title + ' - global best', fontsize=10, fontweight='bold', color='black')
+            else:
+                axe.set_title(title, fontsize=10, color='black')
+            axe.grid(alpha=0.3)
+        elif configuration_type.lower() == 'random-walker':
+            title = f"{len(finite_values)} Random walker config ({len(d['valid'])}/{len(finite_values)} valid)"
+            axe.set_title(title, fontsize=10, fontweight='bold', color='black')
+            axe.grid(alpha=0.3)
+
+    for axe, d in zip(axes, per_h):
+        front = paretoFront(d['inv_speed'], d['cost'], d['valid'])
+
+        def xy(index):
+            return [d['cost'][i] / 1e6 for i in index], [d['inv_speed'][i] for i in index]
+
+        if front:
+            fx, fy = xy(front)
+            axe.autoscale(False)
+
+            fx, fy = np.array(fx), np.array(fy)
+            fx_u, index_u = np.unique(fx, return_index=True)
+            fy_u = fy[index_u]
+
+            if len(fx_u) > 1:
+                il_x, il_y = getPCHIPInterpolator(fx_u, fy_u, 100)
+                axe.plot(il_x, il_y, color='red', linestyle='--', lw=2.5, zorder=5, scalex=False, scaley=False)
+
+    for axe in axes[n:]:
+        axe.axis('off')
+    for axe in axes[:n]:
+        axe.set_xlabel('Cost')
+        axe.set_ylabel('Inverse Speed')
+
+    handles = [
+        Line2D([0], [0], marker='o', color='w', markerfacecolor='lightgray', markersize=8,
+               label=f'coverage < {COVERAGE_MIN} (excluded)'),
+        Line2D([0], [0], marker='o', color='w', markerfacecolor='tab:blue', markersize=8,
+               label='valid, dominated'),
+        Line2D([0], [0], marker='o', color='tab:orange', markersize=8, label='Pareto front (valid'),
+        Line2D([0], [0], marker='*', color='w', markerfacecolor='red', markeredgecolor='black', markersize=15,
+               label='best score'),
+        Line2D([0], [0], color='red', linestyle='--', lw=2, label='PCHIP Interpolation'),
+    ]
+    fig.legend(handles=handles, loc='lower center', ncol=4, fontsize=10)
+    fig.suptitle(f'Constellation Pareto Front with type : Walker - MIN_ELEVATION_DEG = {MIN_ELEVATION_DEG}°', fontsize=16, fontweight='bold')
+    fig.tight_layout()
+    #fig.savefig(f"./result-curves/pareto_Nplanes_Nperplane_h_v{TEST_V}.png", dpi=150, bbox_inches="tight")
+    plt.show()
 
 
 def displayingParetoRW(pareto_point_list, TEST_V):
@@ -328,7 +338,7 @@ def saveRooter(savename):
     N_planes_list, N_per_plane_list, result_scores, avg_sat_coverage, TEST_V, best_idx, H = None, None, None, None, None, None, None
     match simulation_type:
         case 'walker':
-            N_planes_list, N_per_plane_list, result_scores, avg_sat_coverage, TEST_V, best_idx, H = readData(savename)
+            N_planes_list, N_per_plane_list, result_scores, avg_sat_coverage, TEST_V, best_idx, H = readDataW(savename)
         case 'random-walker':
             N_planes_list, N_per_plane_list, result_scores, avg_sat_coverage, TEST_V, best_idx, H = readDataRW(savename)
     displaying(N_planes_list, N_per_plane_list, result_scores, avg_sat_coverage, TEST_V, best_idx, H)

@@ -596,6 +596,10 @@ class Main():
                         N_simu += 1
 
                         satellites, altitude, N_planes, N_per_plane, orbital_params = generateRandomWalker(SEED + mesure_number*N_simu)
+                        print(f'Config shifting ({N_simu}) : {N_planes}, {N_per_plane} \n',
+                              f'Orbital param : {orbital_params} \n',
+                              "Reset constellation position")
+                        print(result_mesure_point)
                         mesure_number = 0
                         direct_distance = calculateDirectDistance(sa_point_angle)
                 

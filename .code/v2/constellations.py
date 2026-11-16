@@ -26,10 +26,11 @@ def generateWalker(N_planes, N_per_plane, orbital_params):
   N_PLANES = N_planes
   N_PER_PLANE = N_per_plane  # N_planes * N_per_plane = number of sat in the constellation
   INCLINATION = orbital_params["INCLINATION"]
+  raan_span = 180 if 80.0 <= INCLINATION <= 100.0 else 360.0    # Walker star or walker delta
 
   satellites = []
   for p in range(N_PLANES):
-      raan = p * (180.0 / N_PLANES)  # Spaced plan of de 180°/12 = 15°
+      raan = p * (raan_span / N_PLANES)  # Spaced plan of de 180°/12 = 15°
       for s in range(N_PER_PLANE):
           # Shift between two plans (F parametre of Walker)
           walker_offset = (p * 360.0 / N_PER_PLANE) / N_PLANES
