@@ -376,6 +376,8 @@ class Main():
         costs_for_Ns = []
         result_mesure_point = []
         sa_point = []
+
+        # Initial constellation settings (creating the vars)
         altitude = 0
         N_planes = 8  # 8 to start
         N_per_plane = 19  # 19 to start

@@ -94,7 +94,7 @@ def readDataW(savename):
 
     if best_config_best_idx is None:
         print(f"[ERROR] No configuration reaches coverage >= {COVERAGE_MIN} on any altitude")
-        displayingParetoPerH(per_h, TEST_V)
+        displayingParetoPerH(per_h, TEST_V, 'walker')
 
     result_points_best = save_raw[best_config_idx]['raw_data']
 
